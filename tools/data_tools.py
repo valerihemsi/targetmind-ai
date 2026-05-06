@@ -1,226 +1,290 @@
 """
-Ajanların CSV üzerinde çalışabilmesi için crewAI tool'ları.
-Her tool pandas ile gerçek hesaplamayı yapar, LLM'e özet sunar.
-Tüm araçlar column_mapping.json üzerinden herhangi bir CSV ile çalışır.
+TargetMind AI — 7 Ajan Öz-Farkındalıklı Pipeline
+Her ajan kendi kararlarını sorgular, birbirlerini değerlendirir,
+bias'larını fark ederek kendini düzeltir.
 """
-import json
+import json, os
 import pandas as pd
 import numpy as np
 from crewai.tools import tool
+from pathlib import Path
 
-CSV_PATH = "data/customers.csv"
+CSV_PATH     = "data/customers.csv"
 CLEANED_PATH = "data/customers_cleaned.csv"
-SCORED_PATH = "data/customers_scored.csv"
+SCORED_PATH  = "data/customers_scored.csv"
+LOG_PATH     = "data/pipeline_log.json"
 
 
-def _load(path: str = CSV_PATH) -> pd.DataFrame:
+class _NpEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.integer): return int(obj)
+        if isinstance(obj, np.floating): return float(obj)
+        if isinstance(obj, np.ndarray): return obj.tolist()
+        return super().default(obj)
+
+def _dumps(obj) -> str:
+    return json.dumps(obj, ensure_ascii=False, indent=2, cls=_NpEncoder)
+
+
+# ── Yardımcı fonksiyonlar ────────────────────────────────────────────────────
+
+def _load(path: str) -> pd.DataFrame:
     return pd.read_csv(path)
 
-
 def _load_mapping() -> dict:
-    """column_mapping.json varsa okur, yoksa oyun şirketi varsayılanlarını döndürür."""
-    import os
-    mapping_path = "data/column_mapping.json"
-    if os.path.exists(mapping_path):
-        with open(mapping_path) as f:
+    p = "data/column_mapping.json"
+    if os.path.exists(p):
+        with open(p) as f:
             return json.load(f)
     return {
         "id_col": "musteri_id",
         "demographic_cols": ["cinsiyet", "gelir_seviyesi", "yas"],
-        "metric_cols": [
-            "haftalik_oyun_saati", "aylik_ortalama_harcama",
-            "aylik_oturum_sayisi", "kampanya_tiklanma_orani",
-            "arkadaslardan_referans",
-        ],
+        "metric_cols": ["haftalik_oyun_saati", "aylik_ortalama_harcama",
+                        "aylik_oturum_sayisi", "kampanya_tiklanma_orani",
+                        "arkadaslardan_referans"],
         "segment_col": "tercih_edilen_tur",
     }
 
+def _log_agent(agent_name: str, result: dict):
+    """Her ajanın çıktısını pipeline log'una kaydeder."""
+    log = {}
+    if os.path.exists(LOG_PATH):
+        with open(LOG_PATH) as f:
+            log = json.load(f)
+    log[agent_name] = result
+    Path(LOG_PATH).write_text(_dumps(log))
 
-# ── 1. Ham veri özeti ────────────────────────────────────────────────────────
+def _read_log() -> dict:
+    if os.path.exists(LOG_PATH):
+        with open(LOG_PATH) as f:
+            return json.load(f)
+    return {}
 
-@tool("Ham Veri Özeti")
-def raw_data_summary(_: str = "") -> str:
-    """Ham CSV'nin istatistiksel özetini döndürür: boyut, eksik değerler, veri tipleri."""
-    df = _load(CSV_PATH)
-    missing = df.isnull().sum()
-    missing_pct = (missing / len(df) * 100).round(1)
-
-    summary = {
-        "toplam_satir": len(df),
-        "toplam_sutun": len(df.columns),
-        "sutunlar": list(df.columns),
-        "eksik_deger_sayisi": missing[missing > 0].to_dict(),
-        "eksik_deger_yuzdesi": missing_pct[missing_pct > 0].to_dict(),
-        "veri_tipleri": df.dtypes.astype(str).to_dict(),
-        "ornek_5_satir": df.head(5).to_dict(orient="records"),
-        "numerik_istatistikler": df.describe().round(2).to_dict(),
+def _demographic_shift(before: pd.DataFrame, after: pd.DataFrame, col: str) -> dict:
+    """Bir kolondaki demografik dağılımın ne kadar kaydığını ölçer."""
+    if col not in before.columns or col not in after.columns:
+        return {}
+    b = before[col].value_counts(normalize=True).round(3) * 100
+    a = after[col].value_counts(normalize=True).round(3) * 100
+    shift = (a - b.reindex(a.index, fill_value=0)).round(1)
+    return {
+        "oncesi": b.to_dict(),
+        "sonrasi": a.to_dict(),
+        "kayma_puan": shift.to_dict(),
+        "max_kayma": round(float(shift.abs().max()), 1) if not shift.empty else 0,
     }
-    return json.dumps(summary, ensure_ascii=False, indent=2)
+
+def _bias_contribution_score(max_kayma: float, max_skor_farki: float = 0) -> float:
+    """0-1 arası bias katkı skoru. 0=temiz, 1=maksimum bias."""
+    kayma_s = min(max_kayma / 10.0, 1.0)
+    fark_s  = min(max_skor_farki / 15.0, 1.0)
+    return round((kayma_s * 0.5 + fark_s * 0.5), 3)
 
 
-# ── 2. Temizleme işlemi ──────────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════
+#  AJAN 1 — VERİ TEMİZLEME
+# ══════════════════════════════════════════════════════════════
 
-@tool("Veri Temizleme İşlemi")
+@tool("Veri Temizleme Ajanı")
 def clean_data(rules_json: str = "") -> str:
     """
-    Column mapping'e göre generic temizleme yapar.
-    Herhangi bir CSV ile çalışır — oyun şirketi verisine özel değil.
+    Veriyi temizler VE kendi kararlarının yarattığı bias'ı ölçer.
+    Öz-değerlendirme: 'Hangi temizleme kararım hangi demografiyi etkiledi?'
     """
-    df = _load(CSV_PATH)
+    raw     = _load(CSV_PATH)
     mapping = _load_mapping()
-    report = {"baslangic_satir": len(df), "yapilan_islemler": []}
+    df      = raw.copy()
+    report  = {"baslangic_satir": len(df), "kararlar": []}
 
-    try:
-        rules = json.loads(rules_json) if rules_json.strip() else {}
-    except Exception:
-        rules = {}
+    id_col   = mapping.get("id_col", "")
+    demo_cols    = mapping.get("demographic_cols", [])
+    metric_cols  = mapping.get("metric_cols", [])
 
-    # 1. Yinelenen satırları sil
+    # 1. Yinelenenler
     before = len(df)
     df = df.drop_duplicates()
-    report["yapilan_islemler"].append(f"Yinelenen satır silindi: {before - len(df)}")
+    report["kararlar"].append({"karar": "Yinelenen satır silme", "etki": before - len(df)})
 
-    id_col = mapping.get("id_col", "")
-
-    # 2. Metrik kolonları sayısala çevir, negatif değerleri NaN yap
-    # (id_col'u atlıyoruz — string ID'leri sayısallaştırmak veriyi bozar)
-    for col in mapping.get("metric_cols", []):
-        if col not in df.columns or col == id_col:
-            continue
+    # 2. Metrik kolonları sayısala çevir, negatif → NaN
+    for col in metric_cols:
+        if col not in df.columns or col == id_col: continue
         if not pd.api.types.is_numeric_dtype(df[col]):
-            # Sayısala çevrilebiliyorsa çevir, yoksa atla
             converted = pd.to_numeric(df[col], errors="coerce")
-            if converted.notna().sum() < len(df) * 0.5:
-                continue  # çoğunluk NaN olacaksa string kolon — atla
+            if converted.notna().sum() < len(df) * 0.5: continue
             df[col] = converted
         neg = (df[col] < 0).sum()
         if neg > 0:
             df.loc[df[col] < 0, col] = np.nan
-            report["yapilan_islemler"].append(f"{col}: {neg} negatif değer → NaN")
+            report["kararlar"].append({"karar": f"{col}: {neg} negatif → NaN", "etki": neg})
 
-    # 3. IQR ile aykırı değer tespiti (gerçek sayısal metrik kolonlarda)
-    for col in mapping.get("metric_cols", []):
-        if col not in df.columns or col == id_col:
-            continue
-        if not pd.api.types.is_numeric_dtype(df[col]):
-            continue
-        if df[col].dropna().nunique() < 4:
-            continue  # çok az unique değer varsa IQR uygulanmaz
+    # 3. IQR aykırı değer tespiti
+    for col in metric_cols:
+        if col not in df.columns or col == id_col: continue
+        if not pd.api.types.is_numeric_dtype(df[col]): continue
+        if df[col].dropna().nunique() < 4: continue
         q1, q3 = df[col].quantile(0.25), df[col].quantile(0.75)
         iqr = q3 - q1
-        lower, upper = q1 - 3 * iqr, q3 + 3 * iqr
+        lower, upper = q1 - 3*iqr, q3 + 3*iqr
         outliers = ((df[col] < lower) | (df[col] > upper)).sum()
         if outliers > 0:
             df.loc[(df[col] < lower) | (df[col] > upper), col] = np.nan
-            report["yapilan_islemler"].append(f"{col}: {outliers} aykırı değer → NaN (3×IQR)")
+            report["kararlar"].append({"karar": f"{col}: {outliers} aykırı değer → NaN (3×IQR)", "etki": outliers})
 
-    # 4. ID kolonu boş satırları sil
+    # 4. ID boş satır silme
     if id_col and id_col in df.columns:
         before = len(df)
         df = df.dropna(subset=[id_col])
-        report["yapilan_islemler"].append(f"ID kolonu boş satır silindi: {before - len(df)}")
+        report["kararlar"].append({"karar": "ID boş satır silme", "etki": before - len(df)})
 
-    # 5. Numerik kolonlarda medyan ile doldur
-    num_cols = df.select_dtypes(include="number").columns.tolist()
-    for col in num_cols:
-        missing = df[col].isna().sum()
-        if missing > 0:
-            median_val = df[col].median()
-            df[col] = df[col].fillna(median_val)
-            report["yapilan_islemler"].append(f"{col}: {missing} eksik → medyan ({median_val:.2f})")
+    # 5. Numerik → medyan doldur
+    for col in df.select_dtypes(include="number").columns:
+        m = df[col].isna().sum()
+        if m > 0:
+            df[col] = df[col].fillna(df[col].median())
+            report["kararlar"].append({"karar": f"{col}: {m} eksik → medyan", "etki": m})
 
-    # 6. Kategorik kolonlarda mod ile doldur
-    cat_cols = df.select_dtypes(include=["object", "category"]).columns.tolist()
-    for col in cat_cols:
-        missing = df[col].isna().sum()
-        if missing > 0 and not df[col].mode().empty:
+    # 6. Kategorik → mod doldur
+    for col in df.select_dtypes(include=["object", "category"]).columns:
+        m = df[col].isna().sum()
+        if m > 0 and not df[col].mode().empty:
             mode_val = df[col].mode()[0]
             df[col] = df[col].fillna(mode_val)
-            report["yapilan_islemler"].append(f"{col}: {missing} eksik → mod ({mode_val})")
+            report["kararlar"].append({"karar": f"{col}: {m} eksik → mod ({mode_val})", "etki": m})
 
     df = df.reset_index(drop=True)
     df.to_csv(CLEANED_PATH, index=False)
 
-    report["bitis_satir"] = len(df)
-    report["elenen_satir"] = report["baslangic_satir"] - report["bitis_satir"]
-    report["kalan_eksik_deger"] = df.isnull().sum()[df.isnull().sum() > 0].to_dict()
+    # ── ÖZ-DEĞERLENDİRME ──────────────────────────────────────
+    oz_degerlendirme = {"demografik_kaymalar": {}, "en_riskli_karar": "", "bias_katki_skoru": 0.0}
+    max_kayma_genel = 0.0
+    for col in demo_cols:
+        shift = _demographic_shift(raw, df, col)
+        if shift:
+            oz_degerlendirme["demografik_kaymalar"][col] = shift
+            if shift["max_kayma"] > max_kayma_genel:
+                max_kayma_genel = shift["max_kayma"]
+                oz_degerlendirme["en_riskli_karar"] = f"'{col}' dağılımı {shift['max_kayma']:.1f} puan kaydı"
 
-    # Demografik özet — mapping'teki kolonlarla
-    demo_summary = {}
-    for col in mapping.get("demographic_cols", []):
-        if col in df.columns:
-            demo_summary[col] = df[col].value_counts().head(10).to_dict()
-    report["demografik_ozet"] = demo_summary
+    oz_degerlendirme["bias_katki_skoru"] = _bias_contribution_score(max_kayma_genel)
+    oz_degerlendirme["sonuc"] = (
+        "⚠ Temizleme kararlarım demografik dağılımı anlamlı şekilde bozdu. "
+        "Mod dolgu belirli grupları yapay olarak güçlendiriyor olabilir."
+        if max_kayma_genel > 3 else
+        "✓ Temizleme kararlarım demografik dağılımı kabul edilebilir düzeyde etkiledi."
+    )
 
-    return json.dumps(report, ensure_ascii=False, indent=2)
+    report.update({
+        "bitis_satir": len(df),
+        "elenen_satir": report["baslangic_satir"] - len(df),
+        "oz_degerlendirme": oz_degerlendirme,
+    })
+
+    _log_agent("Veri Temizleme", {
+        "ozet": f"{report['baslangic_satir']} → {len(df)} satır",
+        "oz_degerlendirme": oz_degerlendirme,
+    })
+    return _dumps(report)
 
 
-# ── 3. Segmentasyon ──────────────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════
+#  AJAN 2 — SEGMENTASYON & ANALİZ
+# ══════════════════════════════════════════════════════════════
 
-@tool("Segmentasyon Analizi")
+@tool("Segmentasyon Ajanı")
 def segmentation_analysis(_: str = "") -> str:
-    """Temizlenmiş verinin segment dağılımını analiz eder. Herhangi bir CSV ile çalışır."""
-    df = _load(CLEANED_PATH)
+    """
+    Segmentasyon yapar VE kendi sınıflandırma kararlarının
+    demografik temsili nasıl etkilediğini ölçer.
+    """
+    df      = _load(CLEANED_PATH)
     mapping = _load_mapping()
+    demo_cols   = mapping.get("demographic_cols", [])
+    metric_cols = mapping.get("metric_cols", [])
+    seg_col     = mapping.get("segment_col", "")
 
-    analysis = {"toplam_kayit": len(df), "tur_dagilimi": {}, "platform_dagilimi": {}}
+    analysis = {"toplam_kayit": len(df)}
 
-    # Demografik/segment kolonların dağılımı
-    for col in mapping.get("demographic_cols", []) + [mapping.get("segment_col", "")]:
+    # Segment dağılımı
+    for col in demo_cols + ([seg_col] if seg_col else []):
         if col and col in df.columns:
             analysis[f"{col}_dagilimi"] = df[col].value_counts().head(15).to_dict()
 
-    # Metrik kolonların tanımlayıcı istatistikleri
+    # Metrik istatistikler
     metric_stats = {}
-    for col in mapping.get("metric_cols", []):
+    for col in metric_cols:
         if col in df.columns:
             metric_stats[col] = {
                 "ortalama": round(float(df[col].mean()), 3),
                 "medyan":   round(float(df[col].median()), 3),
                 "std":      round(float(df[col].std()), 3),
-                "min":      round(float(df[col].min()), 3),
-                "max":      round(float(df[col].max()), 3),
             }
     analysis["metrik_istatistikler"] = metric_stats
 
     # Geriye dönük uyumluluk
-    seg_col = mapping.get("segment_col", "")
     analysis["tur_dagilimi"]      = analysis.get(f"{seg_col}_dagilimi", {})
     analysis["platform_dagilimi"] = {}
 
-    return json.dumps(analysis, ensure_ascii=False, indent=2)
+    # ── ÖZ-DEĞERLENDİRME ──────────────────────────────────────
+    oz = {"temsil_analizi": {}, "bias_katki_skoru": 0.0}
+    max_temsil_farki = 0.0
+    for col in demo_cols:
+        if col not in df.columns: continue
+        dist = df[col].value_counts(normalize=True) * 100
+        max_v = float(dist.max())
+        min_v = float(dist.min())
+        fark  = round(max_v - min_v, 1)
+        oz["temsil_analizi"][col] = {
+            "dagilim": dist.round(1).to_dict(),
+            "en_fazla_temsil_edilen": dist.idxmax(),
+            "temsil_farki_puan": fark,
+        }
+        if fark > max_temsil_farki:
+            max_temsil_farki = fark
+
+    oz["bias_katki_skoru"] = _bias_contribution_score(max_temsil_farki / 2)
+    oz["sonuc"] = (
+        f"⚠ Segmentasyonda demografik dengesizlik var. "
+        f"Maksimum temsil farkı: {max_temsil_farki:.1f} puan."
+        if max_temsil_farki > 20 else
+        "✓ Segmentasyon demografik dağılım açısından kabul edilebilir."
+    )
+    analysis["oz_degerlendirme"] = oz
+
+    _log_agent("Segmentasyon", {"ozet": f"{len(df)} kayıt segmentlendi", "oz_degerlendirme": oz})
+    return _dumps(analysis)
 
 
-# ── 4. Skorlama ──────────────────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════
+#  AJAN 3 — İLK SKORLAMA
+# ══════════════════════════════════════════════════════════════
 
-@tool("Müşteri Skorlama")
+@tool("İlk Skorlama Ajanı")
 def score_customers(weights_json: str = "") -> str:
     """
-    Her kayda 0-100 arası potansiyel skoru verir.
-    Metrik kolonlar mapping'den okunur, eşit ağırlık uygulanır (özel ağırlık verilebilir).
-    weights_json: {"kolon_adi": 0.30, ...}  — toplamı 1.0 olmalı
+    İlk skoru üretir VE kendi ağırlık kararlarının yarattığı
+    demografik skor farklarını ölçer.
     """
-    df = _load(CLEANED_PATH)
+    df      = _load(CLEANED_PATH)
     mapping = _load_mapping()
-    metric_cols = [c for c in mapping.get("metric_cols", []) if c in df.columns
-                   and pd.api.types.is_numeric_dtype(df[c])]
+    metric_cols = [c for c in mapping.get("metric_cols", [])
+                   if c in df.columns and pd.api.types.is_numeric_dtype(df[c])]
+    demo_cols   = [c for c in mapping.get("demographic_cols", []) if c in df.columns]
 
     if not metric_cols:
-        return json.dumps({"hata": "Metrik kolon bulunamadı. Lütfen kolon eşlemesini yapın."})
+        return _dumps({"hata": "Metrik kolon bulunamadı."})
 
     try:
         w = json.loads(weights_json) if weights_json.strip() else {}
     except Exception:
         w = {}
 
-    # Ağırlıklar: verilmemişse eşit dağılım
     if not w:
         equal = round(1.0 / len(metric_cols), 4)
         w = {col: equal for col in metric_cols}
 
-    def norm(series):
-        mn, mx = series.min(), series.max()
-        return (series - mn) / (mx - mn + 1e-9)
+    def norm(s):
+        mn, mx = s.min(), s.max()
+        return (s - mn) / (mx - mn + 1e-9)
 
     skor = pd.Series(0.0, index=df.index)
     kullanilan = {}
@@ -230,432 +294,354 @@ def score_customers(weights_json: str = "") -> str:
         kullanilan[col] = round(agirlik, 4)
 
     df["potansiyel_skor"] = (skor * 100).round(2)
-
-    # Skor segmenti
     df["skor_segmenti"] = pd.cut(
         df["potansiyel_skor"],
         bins=[0, 30, 50, 70, 100],
         labels=["Düşük", "Orta", "Yüksek", "Prime"]
     )
-
     df = df.drop(columns=[c for c in df.columns if c.startswith("_s_")])
     df.to_csv(SCORED_PATH, index=False)
 
-    # Top-10 profil için generic kolon seçimi
-    id_col = mapping.get("id_col", "")
-    demo_cols = [c for c in mapping.get("demographic_cols", []) if c in df.columns]
-    top_cols = ([id_col] if id_col and id_col in df.columns else []) + demo_cols + metric_cols + ["potansiyel_skor"]
-    top_cols = list(dict.fromkeys(top_cols))
-
-    report = {
-        "kullanilan_agirliklar": kullanilan,
-        "skor_dagilimi": df["skor_segmenti"].value_counts().to_dict(),
-        "skor_istatistikleri": df["potansiyel_skor"].describe().round(2).to_dict(),
-        "prime_musteri_sayisi": int((df["skor_segmenti"] == "Prime").sum()),
-        "yuksek_musteri_sayisi": int((df["skor_segmenti"] == "Yüksek").sum()),
-        "top_10_ortalama_profil": df.nlargest(10, "potansiyel_skor")[top_cols].fillna("—").to_dict(orient="records"),
-    }
-    return json.dumps(report, ensure_ascii=False, indent=2)
-
-
-# ── 5. Bias tespiti ──────────────────────────────────────────────────────────
-
-@tool("Bias Tespiti")
-def detect_bias(_: str = "") -> str:
-    """Skorlanmış verideki demografik bias'ı ölçer: seçim oranları, grup farklılıkları."""
-    df = _load(SCORED_PATH)
-    mapping = _load_mapping()
-    demo_cols = [c for c in mapping.get("demographic_cols", []) if c in df.columns]
-
-    high = df[df["skor_segmenti"].isin(["Yüksek", "Prime"])]
-    report = {"toplam_musteri": len(df), "yuksek_prime_sayisi": len(high)}
-
-    for col in demo_cols:
-        total_dist = df[col].value_counts(normalize=True).round(3) * 100
-        high_dist  = high[col].value_counts(normalize=True).round(3) * 100
-        gap        = (high_dist - total_dist).round(1)
-
-        report[col] = {
-            "genel_dagilim_yuzde":  total_dist.to_dict(),
-            "yuksek_segment_yuzde": high_dist.to_dict(),
-            "fark_puan":            gap.dropna().to_dict(),
-            "max_fark":             round(float(gap.abs().max()), 1) if not gap.empty else 0,
-        }
-
-    # Ortalama skor karşılaştırması — her demografik kolon için
+    # ── ÖZ-DEĞERLENDİRME ──────────────────────────────────────
+    oz = {"demografik_skor_farklari": {}, "en_riskli_agirlik": "", "bias_katki_skoru": 0.0}
+    max_fark = 0.0
     for col in demo_cols:
         try:
-            report[f"{col}_ortalama_skor"] = df.groupby(col)["potansiyel_skor"].mean().round(2).to_dict()
+            g = df.groupby(col)["potansiyel_skor"].mean().round(2)
+            fark = round(float(g.max() - g.min()), 2)
+            oz["demografik_skor_farklari"][col] = {
+                "grup_ortalamalar": g.to_dict(),
+                "max_fark_puan": fark,
+                "risk": "YÜKSEK" if fark > 10 else "ORTA" if fark > 5 else "DÜŞÜK",
+            }
+            if fark > max_fark:
+                max_fark = fark
         except Exception:
             pass
 
-    return json.dumps(report, ensure_ascii=False, indent=2)
+    # Hangi metrik en çok skoru domine ediyor?
+    korlar = {}
+    for col in metric_cols:
+        try:
+            korlar[col] = round(float(df[col].corr(df["potansiyel_skor"])), 3)
+        except Exception:
+            pass
+    if korlar:
+        en_dominant = max(korlar, key=lambda x: abs(korlar[x]))
+        oz["en_riskli_agirlik"] = f"'{en_dominant}' (r={korlar[en_dominant]:+.3f}) skoru domine ediyor"
+    oz["metrik_skor_korelasyonlari"] = korlar
+    oz["bias_katki_skoru"] = _bias_contribution_score(0, max_fark)
+    oz["sonuc"] = (
+        f"⚠ Ağırlık kararlarım {max_fark:.1f} puanlık demografik skor farkı yarattı."
+        if max_fark > 5 else
+        "✓ Ağırlık kararlarım demografik gruplar arasında kabul edilebilir fark yarattı."
+    )
 
-
-# ── 6. Proxy değişken tespiti ────────────────────────────────────────────────
-
-@tool("Proxy Değişken Tespiti")
-def detect_proxy_variables(_: str = "") -> str:
-    """Dolaylı bias üretebilecek proxy değişkenleri tespit eder."""
-    df = _load(SCORED_PATH)
-    mapping = _load_mapping()
-
-    sensitive = [c for c in mapping.get("demographic_cols", []) if c in df.columns]
     id_col = mapping.get("id_col", "")
-    skip = set(sensitive + [id_col, "skor_segmenti", "potansiyel_skor"])
-    # Proxy adayları: kategorik kolonlar (demografik + id dışı)
-    potential_proxies = [
-        c for c in df.select_dtypes(include=["object", "category"]).columns
-        if c not in skip
-    ]
+    top_cols = ([id_col] if id_col and id_col in df.columns else []) + demo_cols + metric_cols + ["potansiyel_skor"]
+    top_cols = list(dict.fromkeys([c for c in top_cols if c in df.columns]))
 
-    report = {"proxy_analizi": []}
+    result = {
+        "kullanilan_agirliklar": kullanilan,
+        "skor_dagilimi": df["skor_segmenti"].astype(str).value_counts().to_dict(),
+        "prime_musteri_sayisi": int((df["skor_segmenti"] == "Prime").sum()),
+        "oz_degerlendirme": oz,
+        "top_10": df.nlargest(10, "potansiyel_skor")[top_cols].fillna("—").to_dict(orient="records"),
+    }
 
+    _log_agent("Skorlama", {"kullanilan_agirliklar": kullanilan, "oz_degerlendirme": oz})
+    return _dumps(result)
+
+
+# ══════════════════════════════════════════════════════════════
+#  AJAN 4 — PROXY & BIAS TESPİTİ
+# ══════════════════════════════════════════════════════════════
+
+@tool("Proxy ve Bias Tespit Ajanı")
+def detect_proxy_and_bias(_: str = "") -> str:
+    """
+    Proxy değişkenleri VE demografik bias'ı birlikte tespit eder.
+    Öz-değerlendirme: 'Hangi değişkenleri görmezden geldim?'
+    """
+    df      = _load(SCORED_PATH)
+    mapping = _load_mapping()
+    demo_cols   = [c for c in mapping.get("demographic_cols", []) if c in df.columns]
+    metric_cols = [c for c in mapping.get("metric_cols", []) if c in df.columns]
+    id_col      = mapping.get("id_col", "")
+    skip        = set(demo_cols + [id_col, "skor_segmenti", "potansiyel_skor"])
+
+    # Proxy analizi
+    proxy_analizi = []
+    potential_proxies = [c for c in df.select_dtypes(include=["object","category"]).columns if c not in skip]
     for proxy in potential_proxies:
-        for sens in sensitive:
+        for sens in demo_cols:
             try:
-                ct = pd.crosstab(df[proxy], df[sens])
-                chi2 = 0.0
-                for col in ct.columns:
-                    expected = ct[col].sum() * ct.sum(axis=1) / len(df)
-                    chi2 += ((ct[col] - expected) ** 2 / (expected + 1e-9)).sum()
-                n = len(df)
-                k = min(ct.shape)
-                cramer_v = round(float(np.sqrt(chi2 / (n * (k - 1) + 1e-9))), 3) if k > 1 else 0
-
-                if cramer_v > 0.15:
-                    risk = "YÜKSEK" if cramer_v > 0.35 else "ORTA"
-                    report["proxy_analizi"].append({
-                        "degisken": proxy,
-                        "hassas_degisken": sens,
-                        "iliski_gucü_cramerV": cramer_v,
-                        "risk_seviyesi": risk,
-                        "aciklama": f"'{proxy}' değişkeni '{sens}' ile güçlü ilişki taşıyor — dolaylı bias riski."
+                ct   = pd.crosstab(df[proxy], df[sens])
+                n, k = len(df), min(ct.shape)
+                chi2 = sum(((ct[c] - ct[c].sum()*ct.sum(axis=1)/n)**2 / (ct[c].sum()*ct.sum(axis=1)/n + 1e-9)).sum() for c in ct.columns)
+                cv   = round(float(np.sqrt(chi2 / (n*(k-1)+1e-9))), 3) if k > 1 else 0
+                if cv > 0.15:
+                    proxy_analizi.append({
+                        "degisken": proxy, "hassas_degisken": sens,
+                        "cramer_v": cv,
+                        "risk": "YÜKSEK" if cv > 0.35 else "ORTA",
                     })
             except Exception:
                 continue
 
-    report["proxy_analizi"].sort(key=lambda x: x["iliski_gucü_cramerV"], reverse=True)
-    report["yuksek_riskli_proxy_sayisi"] = sum(1 for p in report["proxy_analizi"] if p["risk_seviyesi"] == "YÜKSEK")
-    return json.dumps(report, ensure_ascii=False, indent=2)
+    proxy_analizi.sort(key=lambda x: x["cramer_v"], reverse=True)
 
-
-# ── 6b. Temizleme kararı denetimi ────────────────────────────────────────────
-
-@tool("Temizleme Kararı Denetimi")
-def audit_cleaning_decisions(_: str = "") -> str:
-    """
-    Temizleme ajanının dolgu kararlarının bias etkisini ölçer.
-    Ham veri ile temizlenmiş veriyi karşılaştırarak demografik ve metrik
-    dağılımların nasıl değiştiğini gösterir.
-    """
-    raw     = _load(CSV_PATH)
-    cleaned = _load(CLEANED_PATH)
-    mapping = _load_mapping()
-    report  = {"denetlenen_kararlar": []}
-
-    # Demografik kolon dağılım kaymaları
-    demo_cols = [c for c in mapping.get("demographic_cols", [])
-                 if c in raw.columns and c in cleaned.columns
-                 and raw[c].dtype == object or (c in raw.columns and raw[c].dtype.name == "object")]
-
+    # Bias tespiti
+    high = df[df["skor_segmenti"].isin(["Yüksek", "Prime"])]
+    bias_tespiti = {}
     for col in demo_cols:
-        try:
-            raw_dist     = raw[col].value_counts(normalize=True).round(3) * 100
-            cleaned_dist = cleaned[col].value_counts(normalize=True).round(3) * 100
-            shift        = (cleaned_dist - raw_dist.reindex(cleaned_dist.index, fill_value=0)).round(1)
-            max_shift    = float(shift.abs().max()) if not shift.empty else 0
-            bias_risk    = "YÜKSEK" if max_shift > 4 else "ORTA" if max_shift > 2 else "DÜŞÜK"
-
-            report["denetlenen_kararlar"].append({
-                "karar": f"'{col}' kolonu eksik değerleri dolduruldu / temizlendi",
-                "ham_dagilim_yuzde":         raw_dist.to_dict(),
-                "temizlenmis_dagilim_yuzde": cleaned_dist.to_dict(),
-                "dagilim_kayması_puan":       shift.to_dict(),
-                "bias_riski": bias_risk,
-                "yorum": (
-                    f"'{col}' dağılımında {max_shift:.1f} puanlık kayma. "
-                    + ("Mod dolgu belirli grupları fazla temsil ediyor olabilir."
-                       if bias_risk != "DÜŞÜK"
-                       else "Dağılım değişimi kabul edilebilir düzeyde.")
-                ),
-            })
-        except Exception:
-            continue
-
-    # Metrik kolon ortalama kaymaları
-    metric_cols = [c for c in mapping.get("metric_cols", [])
-                   if c in raw.columns and c in cleaned.columns]
-    for col in metric_cols:
-        try:
-            raw_mean   = float(pd.to_numeric(raw[col], errors="coerce").dropna().mean())
-            clean_mean = float(cleaned[col].mean())
-            pct_change = abs(clean_mean - raw_mean) / (abs(raw_mean) + 1e-9) * 100
-            report["denetlenen_kararlar"].append({
-                "karar": f"'{col}' kolonu aykırı değerler ve eksikler temizlendi",
-                "ham_ortalama":         round(raw_mean, 2),
-                "temizlenmis_ortalama": round(clean_mean, 2),
-                "degisim_yuzde":        round(pct_change, 1),
-                "bias_riski": "ORTA" if pct_change > 10 else "DÜŞÜK",
-                "yorum": f"Ortalama {pct_change:.1f}% değişti.",
-            })
-        except Exception:
-            continue
-
-    yuksek_risk = sum(1 for k in report["denetlenen_kararlar"] if k["bias_riski"] == "YÜKSEK")
-    orta_risk   = sum(1 for k in report["denetlenen_kararlar"] if k["bias_riski"] == "ORTA")
-    report["ozet"] = {
-        "toplam_karar_denetlendi": len(report["denetlenen_kararlar"]),
-        "yuksek_riskli_karar":     yuksek_risk,
-        "orta_riskli_karar":       orta_risk,
-        "kritik_bulgu": (
-            "Temizleme kararları demografik dağılımda anlamlı kaymaya yol açıyor."
-            if yuksek_risk > 0 else "Temizleme kararları kabul edilebilir risk seviyesinde."
-        ),
-    }
-    return json.dumps(report, ensure_ascii=False, indent=2)
-
-
-# ── 6c. Bias eşiği kontrolü ──────────────────────────────────────────────────
-
-@tool("Bias Eşiği Kontrolü")
-def bias_threshold_check(threshold_json: str = "") -> str:
-    """
-    Demografik gruplar arası skor farkı belirlenen eşiği aşıyorsa otomatik uyarı üretir.
-    threshold_json: JSON — örn. {"esik_puan": 5}
-    """
-    df = _load(SCORED_PATH)
-    mapping = _load_mapping()
-
-    try:
-        t = json.loads(threshold_json) if threshold_json.strip() else {}
-    except Exception:
-        t = {}
-
-    esik = t.get("esik_puan", 5)
-    demo_cols  = [c for c in mapping.get("demographic_cols", []) if c in df.columns]
-    metric_cols = [c for c in mapping.get("metric_cols", []) if c in df.columns
-                   and pd.api.types.is_numeric_dtype(df[c])]
-
-    uyarilar = []
-    group_results = {}
-
-    # Demografik grup skor farklarını hesapla
-    for col in demo_cols:
-        try:
-            group_scores = df.groupby(col)["potansiyel_skor"].mean()
-            max_fark = round(float(group_scores.max() - group_scores.min()), 2)
-            group_results[col] = {
-                "grup_ortalamalar": group_scores.round(2).to_dict(),
-                "max_fark": max_fark,
-            }
-            if max_fark > esik:
-                uyarilar.append({
-                    "uyari_turu": f"{col.upper()} BİASI",
-                    "siddet": "KRİTİK" if max_fark > 10 else "YÜKSEK",
-                    "olculen_fark_puan": max_fark,
-                    "esik_puan": esik,
-                    "oneri": f"'{col}' grubundaki fark {max_fark:.1f} puan — ağırlıkları dengeleyin.",
-                })
-        except Exception:
-            continue
+        total = df[col].value_counts(normalize=True).round(3) * 100
+        h_dist = high[col].value_counts(normalize=True).round(3) * 100
+        gap   = (h_dist - total).round(1)
+        bias_tespiti[col] = {
+            "genel_dagilim": total.to_dict(),
+            "yuksek_segment": h_dist.to_dict(),
+            "fark": gap.dropna().to_dict(),
+            "max_fark": round(float(gap.abs().max()), 1) if not gap.empty else 0,
+        }
 
     # Metrik-skor korelasyonları
-    corr_results = {}
+    korlar = {}
     for col in metric_cols:
-        try:
-            corr = round(float(df[col].corr(df["potansiyel_skor"])), 3)
-            corr_results[col] = corr
-            if corr > 0.5:
-                uyarilar.append({
-                    "uyari_turu": f"{col} BAĞIMLILIĞI",
-                    "siddet": "ORTA",
-                    "olculen_korelasyon": corr,
-                    "oneri": f"'{col}' skoru domine ediyor (r={corr:.2f}) — ağırlığını düşürün.",
-                })
-        except Exception:
-            continue
+        try: korlar[col] = round(float(df[col].corr(df["potansiyel_skor"])), 3)
+        except Exception: pass
 
-    # Geriye dönük uyumluluk alanları
-    first_demo_fark = list(group_results.values())[0]["max_fark"] if group_results else 0
-    return json.dumps({
-        "esik_puan": esik,
-        "demografik_grup_analizleri": group_results,
-        "metrik_skor_korelasyonlari": corr_results,
-        "gelir_fark_puan": first_demo_fark,
-        "esik_asimi": len(uyarilar) > 0,
-        "uyarilar": uyarilar,
-        "durum": "🔴 BİAS EŞİĞİ AŞILDI" if uyarilar else "🟢 Bias eşiği dahilinde",
-    }, ensure_ascii=False, indent=2)
-
-
-# ── 6d. Counterfactual test ───────────────────────────────────────────────────
-
-@tool("Counterfactual Test")
-def counterfactual_test(scenarios_json: str = "") -> str:
-    """
-    Farklı metrik ağırlığı senaryolarında skoru yeniden hesaplar ve
-    her senaryonun demografik bias profilini karşılaştırır.
-    scenarios_json: opsiyonel — boş bırakılırsa eşit ağırlık ve top-metrik senaryoları test edilir.
-    """
-    df = _load(SCORED_PATH)
-    mapping = _load_mapping()
-    metric_cols = [c for c in mapping.get("metric_cols", []) if c in df.columns
-                   and pd.api.types.is_numeric_dtype(df[c])]
-    demo_cols = [c for c in mapping.get("demographic_cols", []) if c in df.columns]
-
-    if not metric_cols:
-        return json.dumps({"hata": "Sayısal metrik kolon bulunamadı."})
-
-    def _norm(s):
-        mn, mx = s.min(), s.max()
-        return (s - mn) / (mx - mn + 1e-9)
-
-    normed = {col: _norm(df[col]) for col in metric_cols}
-    n = len(normed)
-    equal_w = {col: round(1.0 / n, 4) for col in normed}
-
-    # Eğer özel senaryo verilmemişse 2 generic senaryo oluştur
-    try:
-        custom = json.loads(scenarios_json) if scenarios_json.strip() else []
-    except Exception:
-        custom = []
-
-    if custom:
-        scenario_weights = []
-        for sc in custom:
-            scenario_weights.append({"isim": sc.get("isim", "Senaryo"), "agirliklar": sc})
-    else:
-        scenario_weights = [{"isim": "Eşit Ağırlık", "agirliklar": equal_w}]
-        if n > 1:
-            first_col = metric_cols[0]
-            rest_w = round(0.5 / (n - 1), 4)
-            heavy_w = {col: (0.50 if col == first_col else rest_w) for col in normed}
-            scenario_weights.append({"isim": f"{first_col} Ağırlıklı", "agirliklar": heavy_w})
-        if n > 2:
-            last_col = metric_cols[-1]
-            rest_w2 = round(0.5 / (n - 1), 4)
-            alt_w = {col: (0.50 if col == last_col else rest_w2) for col in normed}
-            scenario_weights.append({"isim": f"{last_col} Ağırlıklı", "agirliklar": alt_w})
-
-    sonuclar = []
-    for sc in scenario_weights:
-        w = sc["agirliklar"]
-        skor = sum(normed[col] * w.get(col, equal_w[col]) for col in normed) * 100
-        seg  = pd.cut(skor, bins=[0, 30, 50, 70, 100],
-                      labels=["Düşük", "Orta", "Yüksek", "Prime"])
-        high_mask = seg.isin(["Yüksek", "Prime"])
-
-        group_gaps = {}
-        max_gap = 0.0
-        for d_col in demo_cols:
+    # ── ÖZ-DEĞERLENDİRME ──────────────────────────────────────
+    gozden_kacirilanlar = []
+    for col in demo_cols:
+        for m in metric_cols:
+            if m not in df.columns: continue
             try:
-                g = df.groupby(d_col).apply(lambda g_: skor[g_.index].mean()).round(2)
-                gap = round(float(g.max() - g.min()), 2)
-                group_gaps[d_col] = {"grup_ortalamalari": g.to_dict(), "max_fark": gap}
-                max_gap = max(max_gap, gap)
+                corr = df.groupby(col)[m].mean()
+                fark = float(corr.max() - corr.min())
+                if fark > df[m].std() * 0.5:
+                    gozden_kacirilanlar.append(f"'{m}' metriği '{col}' ile {fark:.1f} fark taşıyor — skorlamada dolaylı bias kaynağı olabilir")
             except Exception:
                 pass
 
-        sonuclar.append({
-            "senaryo": sc["isim"],
-            "agirliklar": {k: round(v, 4) for k, v in w.items()},
-            "skor_segmenti_dagilimi": seg.value_counts().to_dict(),
-            "yuksek_prime_sayisi": int(high_mask.sum()),
-            "demografik_fark_analizi": group_gaps,
-            "max_demografik_fark": max_gap,
-            "gelir_grubu_fark_puan": max_gap,
-            "bias_durumu": (
-                "🔴 Kritik" if max_gap > 10 else
-                "🟡 Yüksek" if max_gap > 5 else
-                "🟢 Kabul edilebilir"
+    oz = {
+        "gozden_kacirilan_iliskiler": gozden_kacirilanlar,
+        "bias_katki_skoru": _bias_contribution_score(len(proxy_analizi) * 2),
+        "sonuc": (
+            f"⚠ {len([p for p in proxy_analizi if p['risk']=='YÜKSEK'])} yüksek riskli proxy tespit ettim. "
+            f"Bu değişkenleri gözden kaçırmak bias değerlendirmemi eksik bıraktı."
+            if any(p["risk"] == "YÜKSEK" for p in proxy_analizi) else
+            "✓ Proxy değişken analizi tamamlandı."
+        ),
+    }
+
+    result = {
+        "proxy_analizi": proxy_analizi,
+        "yuksek_riskli_proxy": sum(1 for p in proxy_analizi if p["risk"] == "YÜKSEK"),
+        "bias_tespiti": bias_tespiti,
+        "metrik_skor_korelasyonlari": korlar,
+        "oz_degerlendirme": oz,
+    }
+
+    _log_agent("Proxy & Bias Tespiti", {"yuksek_proxy": result["yuksek_riskli_proxy"], "oz_degerlendirme": oz})
+    return _dumps(result)
+
+
+# ══════════════════════════════════════════════════════════════
+#  AJAN 5 — ÇAPRAZ AJAN DEĞERLENDİRMESİ (ELEŞTİRMEN)
+# ══════════════════════════════════════════════════════════════
+
+@tool("Çapraz Ajan Değerlendirme Ajanı")
+def inter_agent_critique(_: str = "") -> str:
+    """
+    Tüm ajanların öz-değerlendirmelerini okur, doğrular, çelişkileri bulur.
+    Her ajanın toplam bias katkısını hesaplar ve düzeltme önerileri sunar.
+    """
+    log     = _read_log()
+    mapping = _load_mapping()
+    demo_cols   = mapping.get("demographic_cols", [])
+    metric_cols = mapping.get("metric_cols", [])
+
+    degerlendirmeler = []
+    duzeltme_onerileri = {}
+
+    # ── TEMIZLEME AJANI DEĞERLENDİRMESİ ──────────────────────
+    if "Veri Temizleme" in log:
+        vt = log["Veri Temizleme"]["oz_degerlendirme"]
+        max_k = max((v.get("max_kayma", 0) for v in vt.get("demografik_kaymalar", {}).values()), default=0)
+        dogrulama = "ONAYLANDI" if max_k > 2 else "HAFİFE ALINDI"
+        degerlendirmeler.append({
+            "ajan": "Veri Temizleme",
+            "kendi_bildirdigi_bias_skoru": vt.get("bias_katki_skoru", 0),
+            "dogrulama": dogrulama,
+            "elestiri": (
+                f"Mod dolgu kararları {max_k:.1f} puanlık demografik kayma yarattı. "
+                "Eksik değerleri doldurmak yerine 'Bilinmiyor' kategorisi oluşturulmalıydı."
+                if max_k > 3 else
+                "Temizleme kararları bias açısından yeterince değerlendirilmiş."
             ),
+            "duzeltme": "Eksik kategorik değerler için 'Bilinmiyor' etiketi kullan" if max_k > 3 else None,
+        })
+        if max_k > 3:
+            duzeltme_onerileri["Veri Temizleme"] = "Mod dolgu yerine 'Bilinmiyor' kategorisi"
+
+    # ── SKORLAMA AJANI DEĞERLENDİRMESİ ───────────────────────
+    if "Skorlama" in log:
+        sk = log["Skorlama"]["oz_degerlendirme"]
+        max_fark = max((v.get("max_fark_puan", 0) for v in sk.get("demografik_skor_farklari", {}).values()), default=0)
+        dominant_metrik = sk.get("en_riskli_agirlik", "")
+        dogrulama = "ONAYLANDI" if max_fark > 5 else "HAFİFE ALINDI"
+        degerlendirmeler.append({
+            "ajan": "Skorlama",
+            "kendi_bildirdigi_bias_skoru": sk.get("bias_katki_skoru", 0),
+            "dogrulama": dogrulama,
+            "elestiri": (
+                f"{max_fark:.1f} puanlık demografik skor farkı oluştu. "
+                f"{dominant_metrik}. Eşit ağırlık dağılımı daha adil olurdu."
+                if max_fark > 5 else
+                "Skorlama ağırlıkları demografik açıdan kabul edilebilir sonuç vermiş."
+            ),
+            "duzeltme": f"Tüm metrikleri eşit ağırlıkla skorla" if max_fark > 5 else None,
+        })
+        if max_fark > 5:
+            n = len(metric_cols)
+            equal_w = {c: round(1.0/n, 4) for c in metric_cols} if n else {}
+            duzeltme_onerileri["Skorlama"] = {"yeni_agirliklar": equal_w, "beklenen_fark_azalmasi": f"%{min(int(max_fark*3), 60)}"}
+
+    # ── PROXY AJANI DEĞERLENDİRMESİ ──────────────────────────
+    if "Proxy & Bias Tespiti" in log:
+        pb = log["Proxy & Bias Tespiti"]["oz_degerlendirme"]
+        degerlendirmeler.append({
+            "ajan": "Proxy & Bias Tespiti",
+            "kendi_bildirdigi_bias_skoru": pb.get("bias_katki_skoru", 0),
+            "dogrulama": "ONAYLANDI",
+            "elestiri": pb.get("sonuc", ""),
+            "duzeltme": None,
         })
 
-    best = min(sonuclar, key=lambda x: x["max_demografik_fark"])
+    # ── TOPLAM BİAS KATKI SIRALAMASI ─────────────────────────
+    siralama = sorted(
+        [{"ajan": d["ajan"], "skor": d["kendi_bildirdigi_bias_skoru"]} for d in degerlendirmeler],
+        key=lambda x: x["skor"], reverse=True
+    )
 
-    return json.dumps({
-        "test_edilen_senaryo_sayisi": len(sonuclar),
-        "senaryolar": sonuclar,
-        "tavsiye_edilen_senaryo": best["senaryo"],
-        "tavsiye_gerekce": (
-            f"'{best['senaryo']}' senaryosunda max demografik fark "
-            f"{best['max_demografik_fark']:.1f} puana düşüyor. "
-            f"Yüksek+Prime müşteri sayısı: {best['yuksek_prime_sayisi']}."
+    en_yuksek = siralama[0]["ajan"] if siralama else "—"
+
+    result = {
+        "ajan_degerlendirmeleri": degerlendirmeler,
+        "bias_katki_siramasi": siralama,
+        "en_yuksek_katkili_ajan": en_yuksek,
+        "duzeltme_onerileri": duzeltme_onerileri,
+        "ozet": (
+            f"En yüksek bias katkısı '{en_yuksek}' ajanından geliyor. "
+            f"{len(duzeltme_onerileri)} ajan için düzeltme önerildi."
         ),
-    }, ensure_ascii=False, indent=2)
+    }
+
+    _log_agent("Çapraz Değerlendirme", {"ozet": result["ozet"], "duzeltme_onerileri": duzeltme_onerileri})
+    return _dumps(result)
 
 
-# ── 6e. Gelecek potansiyel ────────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════
+#  AJAN 6 — DÜZELTİLMİŞ YENİDEN SKORLAMA
+# ══════════════════════════════════════════════════════════════
 
-@tool("Gelecek Harcama Potansiyeli")
-def calculate_future_potential(_: str = "") -> str:
+@tool("Düzeltilmiş Skorlama Ajanı")
+def corrected_scoring(_: str = "") -> str:
     """
-    Mevcut skordan bağımsız, gelecekte değer yaratma olasılığını hesaplar.
-    Metrik kolonlar mapping'den okunur, eşit ağırlıklı engagement modeli uygulanır.
+    Eleştirmen ajanın önerilerine göre yeni ağırlıklarla skoru yeniden hesaplar.
+    Öncesi/sonrası karşılaştırması yapar.
     """
-    df = _load(SCORED_PATH)
+    df      = _load(CLEANED_PATH)
     mapping = _load_mapping()
-    metric_cols = [c for c in mapping.get("metric_cols", []) if c in df.columns
-                   and pd.api.types.is_numeric_dtype(df[c])]
+    log     = _read_log()
+    metric_cols = [c for c in mapping.get("metric_cols", [])
+                   if c in df.columns and pd.api.types.is_numeric_dtype(df[c])]
+    demo_cols   = [c for c in mapping.get("demographic_cols", []) if c in df.columns]
 
-    if not metric_cols:
-        return json.dumps({"hata": "Sayısal metrik kolon bulunamadı."})
+    # Düzeltme önerilerini oku
+    duzeltmeler = log.get("Çapraz Değerlendirme", {}).get("duzeltme_onerileri", {})
+    yeni_agirliklar = duzeltmeler.get("Skorlama", {}).get("yeni_agirliklar", {})
+
+    if not yeni_agirliklar:
+        n = len(metric_cols)
+        yeni_agirliklar = {c: round(1.0/n, 4) for c in metric_cols} if n else {}
 
     def norm(s):
         mn, mx = s.min(), s.max()
         return (s - mn) / (mx - mn + 1e-9)
 
-    # Eşit ağırlıklı engagement skoru
-    equal_w = 1.0 / len(metric_cols)
-    engagement = sum(norm(df[col]) * equal_w for col in metric_cols)
+    # Önceki skorları oku
+    onceki_df = _load(SCORED_PATH) if os.path.exists(SCORED_PATH) else df.copy()
+    onceki_farklar = {}
+    for col in demo_cols:
+        try:
+            g = onceki_df.groupby(col)["potansiyel_skor"].mean()
+            onceki_farklar[col] = round(float(g.max() - g.min()), 2)
+        except Exception:
+            onceki_farklar[col] = 0
 
-    df["gelecek_potansiyel"] = (engagement * 100).round(2)
-
-    df["potansiyel_kategori"] = pd.cut(
-        df["gelecek_potansiyel"],
-        bins=[0, 30, 50, 70, 100],
-        labels=["Düşük", "Orta", "Yüksek", "Prime"]
+    # Yeni skoru hesapla
+    skor = sum(norm(df[c]) * yeni_agirliklar.get(c, 1.0/len(metric_cols)) for c in metric_cols)
+    df["potansiyel_skor"] = (skor * 100).round(2)
+    df["skor_segmenti"] = pd.cut(
+        df["potansiyel_skor"], bins=[0,30,50,70,100],
+        labels=["Düşük","Orta","Yüksek","Prime"]
     )
-
-    # Optimal kitle: mevcut skor ≥ 38 VE gelecek potansiyel ≥ 45
-    optimal = df[
-        (df["potansiyel_skor"] >= 38) &
-        (df["gelecek_potansiyel"] >= 45)
-    ].copy()
-
-    # Display kolonları
-    id_col = mapping.get("id_col", "")
-    demo_cols = [c for c in mapping.get("demographic_cols", []) if c in df.columns]
-    display_cols = ([id_col] if id_col and id_col in df.columns else []) + demo_cols + metric_cols + ["potansiyel_skor", "gelecek_potansiyel"]
-    display_cols = list(dict.fromkeys([c for c in display_cols if c in optimal.columns]))
-
-    optimal_sorted = (optimal.nlargest(20, "gelecek_potansiyel")[display_cols]
-                      .fillna("—").to_dict(orient="records"))
-
     df.to_csv(SCORED_PATH, index=False)
-    optimal.nlargest(20, "gelecek_potansiyel").to_csv("data/optimal_targets.csv", index=False)
 
-    return json.dumps({
-        "gelecek_potansiyel_dagilimi": df["potansiyel_kategori"].value_counts().to_dict(),
-        "optimal_kitle_sayisi": len(optimal),
-        "optimal_ort_gelecek_skor": round(float(optimal["gelecek_potansiyel"].mean()), 1) if len(optimal) > 0 else 0,
-        "optimal_ort_mevcut_skor": round(float(optimal["potansiyel_skor"].mean()), 1) if len(optimal) > 0 else 0,
-        "optimal_liste": optimal_sorted,
-        "kullanilan_metrikler": metric_cols,
-    }, ensure_ascii=False, indent=2)
+    # Yeni farklar
+    sonraki_farklar = {}
+    for col in demo_cols:
+        try:
+            g = df.groupby(col)["potansiyel_skor"].mean()
+            sonraki_farklar[col] = round(float(g.max() - g.min()), 2)
+        except Exception:
+            sonraki_farklar[col] = 0
+
+    # Karşılaştırma
+    karsilastirma = {}
+    for col in demo_cols:
+        once  = onceki_farklar.get(col, 0)
+        sonra = sonraki_farklar.get(col, 0)
+        karsilastirma[col] = {
+            "onceki_fark": once,
+            "sonraki_fark": sonra,
+            "iyilesme_puan": round(once - sonra, 2),
+            "iyilesme_yuzde": round((once - sonra) / (once + 1e-9) * 100, 1),
+        }
+
+    toplam_iyilesme = sum(v["iyilesme_puan"] for v in karsilastirma.values())
+
+    result = {
+        "uygulanan_agirliklar": yeni_agirliklar,
+        "skor_dagilimi": df["skor_segmenti"].astype(str).value_counts().to_dict(),
+        "oncesi_sonrasi": karsilastirma,
+        "toplam_bias_azalmasi_puan": round(toplam_iyilesme, 2),
+        "ozet": (
+            f"Düzeltme sonrası toplam {toplam_iyilesme:.1f} puanlık bias azaldı."
+            if toplam_iyilesme > 0 else
+            "Düzeltme mevcut bias düzeyini değiştirmedi."
+        ),
+    }
+
+    _log_agent("Düzeltilmiş Skorlama", {"ozet": result["ozet"], "oncesi_sonrasi": karsilastirma})
+    return _dumps(result)
 
 
-# ── 7. Final optimizasyon ────────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════
+#  AJAN 7 — FİNAL OPTİMİZASYON & RAPORLAR
+# ══════════════════════════════════════════════════════════════
 
-@tool("Final Hedef Kitle Oluştur")
-def build_final_targets(criteria_json: str = "") -> str:
+@tool("Final Optimizasyon ve Rapor Ajanı")
+def build_final_and_report(criteria_json: str = "") -> str:
     """
-    Tüm analizler sonucunda final hedef kitle listesini oluşturur.
-    criteria_json: JSON — örn. {"min_skor": 50, "hedef_segmentler": ["A","B"]}
+    Düzeltilmiş skorlarla optimal müşteri havuzunu oluşturur.
+    İki ayrı rapor üretir: Süreç Raporu + Optimal Kitle Raporu.
     """
-    df = _load(SCORED_PATH)
+    df      = _load(SCORED_PATH)
     mapping = _load_mapping()
+    log     = _read_log()
 
     try:
         c = json.loads(criteria_json) if criteria_json.strip() else {}
@@ -663,37 +649,73 @@ def build_final_targets(criteria_json: str = "") -> str:
         c = {}
 
     min_skor = c.get("min_skor", 50)
-    filtered = df[df["potansiyel_skor"] >= min_skor].copy()
+    final    = df[df["potansiyel_skor"] >= min_skor].copy()
+    final.to_csv("data/final_targets.csv", index=False)
 
-    # Opsiyonel: segment kolonu filtresi
-    segment_col = mapping.get("segment_col", "")
-    hedef_segmentler = c.get("hedef_segmentler", [])
-    if segment_col and segment_col in df.columns and hedef_segmentler:
-        filtered = filtered[filtered[segment_col].isin(hedef_segmentler)]
+    demo_cols   = [col for col in mapping.get("demographic_cols", []) if col in final.columns]
+    metric_cols = [col for col in mapping.get("metric_cols", []) if col in final.columns]
+    id_col      = mapping.get("id_col", "")
 
-    filtered.to_csv("data/final_targets.csv", index=False)
+    # Gelecek potansiyel
+    if metric_cols:
+        def norm(s): mn,mx=s.min(),s.max(); return (s-mn)/(mx-mn+1e-9)
+        final["gelecek_potansiyel"] = (sum(norm(df[c]) for c in metric_cols if c in df.columns) / len(metric_cols) * 100).round(2)
+    else:
+        final["gelecek_potansiyel"] = final["potansiyel_skor"]
 
-    report = {
-        "uygulanan_kriterler": {"minimum_skor": min_skor},
-        "baslangic_havuz": len(df),
-        "final_hedef_kitle": len(filtered),
-        "elenme_orani_yuzde": round((1 - len(filtered) / len(df)) * 100, 1) if len(df) > 0 else 0,
-        "segment_dagilimi": filtered["skor_segmenti"].value_counts().to_dict() if "skor_segmenti" in filtered.columns else {},
-        "skor_ortalama": round(float(filtered["potansiyel_skor"].mean()), 2) if len(filtered) > 0 else 0,
-        "cikti_dosyasi": "data/final_targets.csv",
+    df["gelecek_potansiyel"] = df.get("gelecek_potansiyel", df["potansiyel_skor"])
+    df.to_csv(SCORED_PATH, index=False)
+
+    optimal = final.nlargest(20, "gelecek_potansiyel")
+    optimal.to_csv("data/optimal_targets.csv", index=False)
+
+    # ── SÜREÇ RAPORU ──────────────────────────────────────────
+    surec = {
+        "ajan_ozeti": [],
+        "toplam_bias_azalmasi": log.get("Düzeltilmiş Skorlama", {}).get("toplam_bias_azalmasi_puan", 0),
+        "en_etkili_duzeltme": "",
+    }
+    for ajan_adi, ajan_log in log.items():
+        oz = ajan_log.get("oz_degerlendirme", {})
+        surec["ajan_ozeti"].append({
+            "ajan": ajan_adi,
+            "ozet": ajan_log.get("ozet", ""),
+            "bias_katki_skoru": oz.get("bias_katki_skoru", 0),
+            "fark_ettigi_bias": oz.get("sonuc", ""),
+        })
+
+    duzeltme_log = log.get("Düzeltilmiş Skorlama", {}).get("oncesi_sonrasi", {})
+    if duzeltme_log:
+        en_iyi = max(duzeltme_log.items(), key=lambda x: x[1].get("iyilesme_puan", 0))
+        surec["en_etkili_duzeltme"] = f"'{en_iyi[0]}' bias'ı {en_iyi[1].get('iyilesme_puan',0):.1f} puan azaldı"
+
+    # ── OPTİMAL KİTLE RAPORU ──────────────────────────────────
+    display_cols = ([id_col] if id_col and id_col in final.columns else []) + demo_cols + metric_cols + ["potansiyel_skor", "gelecek_potansiyel"]
+    display_cols = list(dict.fromkeys([c for c in display_cols if c in final.columns]))
+
+    havuz = {
+        "toplam_havuz": len(final),
+        "elenme_orani": round((1 - len(final)/len(df))*100, 1),
+        "minimum_skor": min_skor,
+        "skor_dagilimi": final["skor_segmenti"].astype(str).value_counts().to_dict(),
+        "optimal_20": optimal[display_cols].fillna("—").round({c:1 for c in metric_cols if c in optimal.columns}).to_dict(orient="records"),
+    }
+    for col in demo_cols:
+        havuz[f"{col}_dagilimi"] = final[col].value_counts().to_dict()
+    if len(final) > 0:
+        havuz["ort_skor"] = round(float(final["potansiyel_skor"].mean()), 1)
+
+    Path("data/optimal_targets.csv").write_text(
+        optimal[display_cols].fillna("—").to_csv(index=False)
+    )
+
+    result = {
+        "surec_raporu": surec,
+        "optimal_kitle_raporu": havuz,
+        "final_hedef_kitle": len(final),
+        "elenme_orani_yuzde": round((1-len(final)/len(df))*100, 1),
+        "skor_ortalama": round(float(final["potansiyel_skor"].mean()), 2) if len(final) > 0 else 0,
     }
 
-    # Demografik dağılımlar
-    demo_cols = [col for col in mapping.get("demographic_cols", []) if col in filtered.columns]
-    for col in demo_cols:
-        report[f"{col}_dagilimi"] = filtered[col].value_counts().to_dict()
-
-    # Metrik ortalamalar
-    metric_cols = [col for col in mapping.get("metric_cols", []) if col in filtered.columns]
-    for col in metric_cols:
-        try:
-            report[f"{col}_ortalama"] = round(float(filtered[col].mean()), 2)
-        except Exception:
-            pass
-
-    return json.dumps(report, ensure_ascii=False, indent=2)
+    _log_agent("Final Optimizasyon", {"final_kitle": len(final), "surec_ozeti": surec["ajan_ozeti"]})
+    return _dumps(result)

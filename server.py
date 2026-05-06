@@ -22,26 +22,27 @@ if _env.exists():
 
 app = Flask(__name__, static_folder=".")
 
+# Ensure data directory exists (important for Railway / cloud deployments)
+Path("data").mkdir(exist_ok=True)
+
 AGENT_NAMES = [
     "Veri Temizleme",
     "Segmentasyon",
-    "Skorlama & Eşik Kontrolü",
-    "Bias Tespiti",
-    "Proxy Değişken Tespiti",
-    "Eleştirmen",
-    "Yeniden Optimizasyon",
-    "Gelecek Harcama Potansiyeli",
+    "İlk Skorlama",
+    "Proxy & Bias Tespiti",
+    "Çapraz Ajan Değerlendirmesi",
+    "Düzeltilmiş Skorlama",
+    "Final Optimizasyon & Raporlar",
 ]
 
 AGENT_DESCS = [
-    "Eksik değerler, aykırı değerler ve format tutarsızlıkları temizleniyor",
-    "Müşteriler davranış ve potansiyele göre segmentlere ayrılıyor",
-    "Potansiyel skorları hesaplanıyor, bias eşiği kontrol ediliyor",
-    "Demografik gruplar arası sistematik dışlama analiz ediliyor",
-    "Dolaylı bias üreten proxy değişkenler tespit ediliyor",
-    "Kararlar counterfactual test ile sayısal olarak sorgulanıyor",
-    "Bias bulgularına göre final hedef kitle oluşturuluyor",
-    "Bağlılık, sadakat ve ikna edilebilirlik ile gelecek potansiyel hesaplanıyor",
+    "Veri temizleniyor ve temizleme kararlarının bias katkısı öz-değerlendiriliyor",
+    "Segmentasyon yapılıyor ve demografik temsil analiz ediliyor",
+    "İlk skor hesaplanıyor ve ağırlık kararlarının yarattığı demografik fark ölçülüyor",
+    "Proxy değişkenler ve demografik bias birlikte tespit ediliyor",
+    "Ajanların öz-değerlendirmeleri çapraz kontrol ediliyor ve düzeltme önerileri üretiliyor",
+    "Eleştirmen önerileriyle yeniden skorlama yapılıyor ve bias azaltması ölçülüyor",
+    "Optimal havuz oluşturuluyor, Süreç Raporu ve Kitle Raporu üretiliyor",
 ]
 
 
@@ -170,7 +171,7 @@ def get_dashboard_data() -> dict:
         bias_compat.update(bias)
 
         # Skor dağılımı
-        skor_dist = scored["skor_segmenti"].value_counts().to_dict() if "skor_segmenti" in scored.columns else {}
+        skor_dist = scored["skor_segmenti"].astype(str).value_counts().to_dict() if "skor_segmenti" in scored.columns else {}
 
         # Final müşteri listesi — sadece var olan kolonlar
         display_cols = ([id_col] if id_col and id_col in final.columns else [])
@@ -196,7 +197,7 @@ def get_dashboard_data() -> dict:
             optimal_list = (opt[opt_cols].fillna("—").round({c: 1 for c in opt_num})
                             .to_dict(orient="records"))
 
-        # Özet
+        # Özet — hem generic hem eski dashboard alanlarını doldur
         ozet = {}
         if "potansiyel_skor" in final.columns and len(final) > 0:
             ozet["ort_skor"] = round(float(final["potansiyel_skor"].mean()), 1)
@@ -204,6 +205,15 @@ def get_dashboard_data() -> dict:
             if col in final.columns and len(final) > 0:
                 try:
                     ozet[f"ort_{col}"] = round(float(final[col].mean()), 1)
+                except Exception:
+                    pass
+        # Geriye dönük uyumluluk — eski dashboard widget'ları için sabit alanlar
+        for alias, src in [("ort_harcama", "aylik_ortalama_harcama"),
+                           ("ort_oyun",    "haftalik_oyun_saati"),
+                           ("ort_yas",     "yas")]:
+            if src in final.columns and len(final) > 0:
+                try:
+                    ozet[alias] = round(float(final[src].mean()), 1)
                 except Exception:
                     pass
 
@@ -228,8 +238,8 @@ def index():
 
 def run_pipeline(msg_queue: queue.Queue, mode: str = "demo"):
     """
-    Saf Python pipeline — LLM yok, araçlar doğrudan çağrılır.
-    Deterministik, hızlı, güvenilir.
+    7 Ajan öz-farkındalıklı pipeline.
+    Her ajan kendi bias katkısını ölçer, eleştirmen çapraz değerlendirir.
     """
     import sys, traceback
     sys.path.insert(0, ".")
@@ -246,10 +256,12 @@ def run_pipeline(msg_queue: queue.Queue, mode: str = "demo"):
     try:
         from tools.data_tools import (
             clean_data, segmentation_analysis, score_customers,
-            bias_threshold_check, detect_bias, audit_cleaning_decisions,
-            detect_proxy_variables, counterfactual_test, build_final_targets,
-            calculate_future_potential,
+            detect_proxy_and_bias, inter_agent_critique,
+            corrected_scoring, build_final_and_report,
         )
+
+        # ── Pipeline log'u sıfırla ────────────────────────────────
+        Path("data/pipeline_log.json").write_text("{}")
 
         # ── Veri hazırla ──────────────────────────────────────────
         if mode == "demo":
@@ -259,94 +271,99 @@ def run_pipeline(msg_queue: queue.Queue, mode: str = "demo"):
             df = inject_issues(df)
             df = df.sample(frac=1, random_state=99).reset_index(drop=True)
             df.to_csv("data/customers.csv", index=False)
+            Path("data/column_mapping.json").write_text(json.dumps({
+                "id_col": "musteri_id",
+                "demographic_cols": ["cinsiyet", "gelir_seviyesi", "yas"],
+                "metric_cols": ["haftalik_oyun_saati", "aylik_ortalama_harcama",
+                                "aylik_oturum_sayisi", "kampanya_tiklanma_orani",
+                                "arkadaslardan_referans"],
+                "segment_col": "tercih_edilen_tur",
+            }, ensure_ascii=False, indent=2))
 
         count = len(pd.read_csv("data/customers.csv"))
         msg_queue.put({"type": "data_ready", "count": count})
 
-        # ── ADIM 1: Veri Temizleme ────────────────────────────────
+        # ── AJAN 1: Veri Temizleme ────────────────────────────────
         send_start(0)
-        r1 = json.loads(clean_data.run(
-            json.dumps({"yas_min": 13, "yas_max": 75})
-        ))
+        r1 = json.loads(clean_data.run(json.dumps({"yas_min": 13, "yas_max": 75})))
+        oz1 = r1.get("oz_degerlendirme", {})
+        bias1 = oz1.get("bias_katki_skoru", 0)
+        level1 = "warn" if bias1 > 0.3 else "ok"
         send_done(0,
-            f"{r1['baslangic_satir']} → {r1['bitis_satir']} müşteri  ·  "
-            f"{r1['elenen_satir']} satır elendi")
+            f"{r1['baslangic_satir']} → {r1['bitis_satir']} kayıt  ·  "
+            f"{r1['elenen_satir']} elendi  ·  Bias katkı: {bias1:.2f}",
+            level1)
 
-        # ── ADIM 2: Segmentasyon ──────────────────────────────────
+        # ── AJAN 2: Segmentasyon ──────────────────────────────────
         send_start(1)
         r2 = json.loads(segmentation_analysis.run(""))
-        tur_dist  = r2.get("tur_dagilimi", {})
-        top_tur   = max(tur_dist, key=tur_dist.get) if tur_dist else "—"
-        metric_stats = r2.get("metrik_istatistikler", {})
-        col_count = len(metric_stats)
+        oz2 = r2.get("oz_degerlendirme", {})
+        bias2 = oz2.get("bias_katki_skoru", 0)
+        col_count = len(r2.get("metrik_istatistikler", {}))
+        level2 = "warn" if bias2 > 0.3 else "ok"
         send_done(1,
-            f"En yaygın segment: {top_tur}  ·  {col_count} metrik analiz edildi")
+            f"{r2['toplam_kayit']} kayıt  ·  {col_count} metrik  ·  Bias katkı: {bias2:.2f}",
+            level2)
 
-        # ── ADIM 3: Skorlama & Bias Eşiği ────────────────────────
+        # ── AJAN 3: İlk Skorlama ──────────────────────────────────
         send_start(2)
         r3 = json.loads(score_customers.run(""))
-        r3t = json.loads(bias_threshold_check.run(""))
-        gelir_fark = r3t["gelir_fark_puan"]
-        level3 = "error" if gelir_fark > 5 else "ok"
-        esik_msg = (f"⚠ Bias eşiği aşıldı — gelir farkı {gelir_fark} puan"
-                    if gelir_fark > 5 else f"Bias eşiği OK ({gelir_fark} puan)")
-        dist = r3["skor_dagilimi"]
+        oz3 = r3.get("oz_degerlendirme", {})
+        bias3 = oz3.get("bias_katki_skoru", 0)
+        dist3 = r3.get("skor_dagilimi", {})
+        level3 = "warn" if bias3 > 0.3 else "ok"
         send_done(2,
-            f"Prime: {dist.get('Prime',0)}  Yüksek: {dist.get('Yüksek',0)}  "
-            f"Orta: {dist.get('Orta',0)}  Düşük: {dist.get('Düşük',0)}  ·  {esik_msg}",
+            f"Prime: {dist3.get('Prime',0)}  Yüksek: {dist3.get('Yüksek',0)}  "
+            f"Orta: {dist3.get('Orta',0)}  ·  Bias katkı: {bias3:.2f}",
             level3)
 
-        # ── ADIM 4: Bias Tespiti ──────────────────────────────────
+        # ── AJAN 4: Proxy & Bias Tespiti ──────────────────────────
         send_start(3)
-        r4a = json.loads(audit_cleaning_decisions.run(""))
-        r4b = json.loads(detect_bias.run(""))
-        yuksek_risk = r4a["ozet"]["yuksek_riskli_karar"]
-        max_bias = max(
-            (v.get("max_fark", 0) for v in r4b.values() if isinstance(v, dict) and "max_fark" in v),
-            default=0
-        )
-        level4 = "warn" if yuksek_risk > 0 else "ok"
+        r4 = json.loads(detect_proxy_and_bias.run(""))
+        oz4 = r4.get("oz_degerlendirme", {})
+        bias4 = oz4.get("bias_katki_skoru", 0)
+        yuksek_proxy = r4.get("yuksek_riskli_proxy", 0)
+        toplam_proxy = len(r4.get("proxy_analizi", []))
+        level4 = "warn" if yuksek_proxy > 0 else "ok"
         send_done(3,
-            f"Temizleme: {yuksek_risk} yüksek riskli karar  ·  "
-            f"Maks. demografik fark: {max_bias:.1f} puan",
+            f"{toplam_proxy} proxy ilişkisi  ·  {yuksek_proxy} yüksek riskli  ·  "
+            f"Bias katkı: {bias4:.2f}",
             level4)
 
-        # ── ADIM 5: Proxy Tespiti ─────────────────────────────────
+        # ── AJAN 5: Çapraz Ajan Değerlendirmesi ───────────────────
         send_start(4)
-        r5 = json.loads(detect_proxy_variables.run(""))
-        yuksek_proxy = r5["yuksek_riskli_proxy_sayisi"]
-        toplam_proxy = len(r5["proxy_analizi"])
-        level5 = "warn" if yuksek_proxy > 0 else "ok"
+        r5 = json.loads(inter_agent_critique.run(""))
+        en_yuksek = r5.get("en_yuksek_katkili_ajan", "—")
+        duzeltme_sayisi = len(r5.get("duzeltme_onerileri", {}))
+        level5 = "warn" if duzeltme_sayisi > 0 else "ok"
         send_done(4,
-            f"{toplam_proxy} proxy ilişkisi tespit edildi  ·  "
-            f"{yuksek_proxy} yüksek riskli",
+            f"En yüksek katkılı: {en_yuksek}  ·  {duzeltme_sayisi} düzeltme önerildi",
             level5)
 
-        # ── ADIM 6: Counterfactual Test ───────────────────────────
+        # ── AJAN 6: Düzeltilmiş Skorlama ─────────────────────────
         send_start(5)
-        r6 = json.loads(counterfactual_test.run(""))
-        best_name = r6["tavsiye_edilen_senaryo"]
-        best_s    = next((s for s in r6["senaryolar"] if s["senaryo"] == best_name), {})
-        best_fark = best_s.get("gelir_grubu_fark_puan", 0)
+        r6 = json.loads(corrected_scoring.run(""))
+        iyilesme = r6.get("toplam_bias_azalmasi_puan", 0)
+        level6 = "ok" if iyilesme >= 0 else "warn"
         send_done(5,
-            f"Optimal: {best_name}  ·  Gelir bias farkı {best_fark} puana indi")
+            f"Toplam bias azalması: {iyilesme:.1f} puan  ·  {r6.get('ozet', '')}",
+            level6)
 
-        # ── ADIM 7: Final Optimizasyon ────────────────────────────
+        # ── AJAN 7: Final Optimizasyon & Raporlar ─────────────────
         send_start(6)
-        min_skor = 38 if best_fark <= 5 else 42
-        r7 = json.loads(build_final_targets.run(json.dumps({
-            "min_skor": min_skor,
-        })))
+        r7 = json.loads(build_final_and_report.run(json.dumps({"min_skor": 50})))
+        final_count = r7.get("final_hedef_kitle", 0)
+        elenme = r7.get("elenme_orani_yuzde", 0)
+        # Raporları ayrı dosyalara kaydet
+        Path("data/surec_raporu.json").write_text(
+            json.dumps(r7.get("surec_raporu", {}), ensure_ascii=False, indent=2)
+        )
+        Path("data/optimal_kitle_raporu.json").write_text(
+            json.dumps(r7.get("optimal_kitle_raporu", {}), ensure_ascii=False, indent=2)
+        )
         send_done(6,
-            f"Final hedef kitle: {r7['final_hedef_kitle']} müşteri  ·  "
-            f"%{r7['elenme_orani_yuzde']} elenme")
-
-        # ── ADIM 8: Gelecek Harcama Potansiyeli ───────────────────
-        send_start(7)
-        r8 = json.loads(calculate_future_potential.run(""))
-        send_done(7,
-            f"Optimal kitle: {r8['optimal_kitle_sayisi']} müşteri  ·  "
-            f"Ort. gelecek skor: {r8['optimal_ort_gelecek_skor']}")
+            f"Final havuz: {final_count} müşteri  ·  %{elenme} elenme  ·  2 rapor üretildi",
+            "ok")
 
         # ── Dashboard ─────────────────────────────────────────────
         msg_queue.put({"type": "complete", "dashboard": get_dashboard_data()})
@@ -459,6 +476,210 @@ def set_mapping():
 
 
 
+@app.route("/api/report")
+def generate_report():
+    """Analiz raporunu HTML olarak üretir."""
+    try:
+        mapping  = _read_mapping()
+        scored   = pd.read_csv("data/customers_scored.csv")
+        cleaned  = pd.read_csv("data/customers_cleaned.csv")
+        raw      = pd.read_csv("data/customers.csv")
+        final    = pd.read_csv("data/final_targets.csv") if Path("data/final_targets.csv").exists() else pd.DataFrame()
+
+        demo_cols   = [c for c in mapping.get("demographic_cols", []) if c in scored.columns]
+        metric_cols = [c for c in mapping.get("metric_cols", [])      if c in scored.columns]
+
+        # Bias analizi
+        bias_rows = []
+        for col in demo_cols:
+            try:
+                g = scored.groupby(col)["potansiyel_skor"].mean().round(2)
+                fark = round(float(g.max() - g.min()), 2)
+                seviye = "🔴 Kritik" if fark > 10 else "🟡 Yüksek" if fark > 5 else "🟢 Kabul edilebilir"
+                bias_rows.append({"kolon": col, "fark": fark, "seviye": seviye,
+                                  "gruplar": g.to_dict()})
+            except Exception:
+                pass
+
+        # Proxy analizi
+        proxy_rows = []
+        id_col = mapping.get("id_col", "")
+        skip   = set(demo_cols + [id_col, "skor_segmenti", "potansiyel_skor"])
+        proxies = [c for c in scored.select_dtypes(include=["object","category"]).columns if c not in skip]
+        for proxy in proxies[:8]:
+            for sens in demo_cols[:3]:
+                try:
+                    ct  = pd.crosstab(scored[proxy], scored[sens])
+                    n, k = len(scored), min(ct.shape)
+                    chi2 = sum(((ct[c] - ct[c].sum()*ct.sum(axis=1)/n)**2 / (ct[c].sum()*ct.sum(axis=1)/n + 1e-9)).sum() for c in ct.columns)
+                    cv = round(float(np.sqrt(chi2 / (n*(k-1)+1e-9))), 3) if k > 1 else 0
+                    if cv > 0.15:
+                        proxy_rows.append({"proxy": proxy, "hassas": sens, "cramer_v": cv,
+                                           "risk": "Yüksek" if cv > 0.35 else "Orta"})
+                except Exception:
+                    pass
+
+        # Skor dağılımı
+        skor_dist = scored["skor_segmenti"].astype(str).value_counts().to_dict() if "skor_segmenti" in scored.columns else {}
+
+        # Metrik korelasyonlar
+        corr_rows = []
+        for col in metric_cols:
+            try:
+                corr = round(float(scored[col].corr(scored["potansiyel_skor"])), 3)
+                corr_rows.append({"metrik": col, "korelasyon": corr})
+            except Exception:
+                pass
+        corr_rows.sort(key=lambda x: abs(x["korelasyon"]), reverse=True)
+
+        from datetime import datetime
+        now = datetime.now().strftime("%d %B %Y, %H:%M")
+
+        def bias_color(fark):
+            if fark > 10: return "#ef4444"
+            if fark > 5:  return "#f97316"
+            return "#22c55e"
+
+        def render_group_table(gruplar):
+            rows = "".join(f"<tr><td>{k}</td><td style='text-align:right;font-weight:600'>{v}</td></tr>"
+                           for k, v in gruplar.items())
+            return f"<table class='inner'><tbody>{rows}</tbody></table>"
+
+        bias_html = ""
+        for b in bias_rows:
+            clr = bias_color(b["fark"])
+            bias_html += f"""
+            <div class='bias-block'>
+              <div class='bias-header'>
+                <span class='bias-col'>{b['kolon']}</span>
+                <span class='bias-fark' style='color:{clr}'>{b['fark']} puan fark</span>
+                <span class='bias-sev'>{b['seviye']}</span>
+              </div>
+              <p class='bias-desc'>
+                {'Bu demografik grupta skor eşitsizliği eşiği (5 puan) aşıyor.' if b['fark'] > 5
+                 else 'Bu demografik grupta skor dağılımı kabul edilebilir düzeyde.'}
+                Gruplar arası maksimum fark: <strong>{b['fark']} puan</strong>.
+              </p>
+              {render_group_table(b['gruplar'])}
+            </div>"""
+
+        proxy_html = ""
+        for p in proxy_rows[:8]:
+            proxy_html += f"""<tr>
+              <td>{p['proxy']}</td><td>{p['hassas']}</td>
+              <td style='text-align:center'>{p['cramer_v']}</td>
+              <td style='text-align:center;color:{"#ef4444" if p["risk"]=="Yüksek" else "#f97316"};font-weight:600'>{p['risk']}</td>
+            </tr>"""
+
+        corr_html = ""
+        for c in corr_rows:
+            w = abs(c["korelasyon"]) * 100
+            clr = "#ef4444" if abs(c["korelasyon"]) > 0.5 else "#f97316" if abs(c["korelasyon"]) > 0.3 else "#22c55e"
+            corr_html += f"""
+            <div class='corr-row'>
+              <span class='corr-label'>{c['metrik']}</span>
+              <div class='corr-bar-bg'><div class='corr-bar' style='width:{w:.0f}%;background:{clr}'></div></div>
+              <span class='corr-val' style='color:{clr}'>{c['korelasyon']:+.3f}</span>
+            </div>"""
+
+        dist_html = "".join(
+            f"<div class='dist-item'><span class='dist-label'>{k}</span><span class='dist-val'>{v}</span></div>"
+            for k, v in sorted(skor_dist.items(), key=lambda x: ["Düşük","Orta","Yüksek","Prime","nan"].index(x[0]) if x[0] in ["Düşük","Orta","Yüksek","Prime","nan"] else 99))
+
+        html = f"""<!DOCTYPE html>
+<html lang='tr'><head><meta charset='UTF-8'>
+<title>TargetMind AI — Bias Raporu</title>
+<style>
+  * {{ box-sizing:border-box; margin:0; padding:0; }}
+  body {{ font-family: system-ui, sans-serif; background:#f7f6f3; color:#1c1917; line-height:1.6; }}
+  .page {{ max-width:860px; margin:0 auto; padding:48px 32px; }}
+  h1 {{ font-size:28px; font-weight:800; letter-spacing:-0.03em; margin-bottom:4px; }}
+  h2 {{ font-size:13px; letter-spacing:.15em; color:#78716c; text-transform:uppercase; margin:40px 0 16px; }}
+  .meta {{ font-size:13px; color:#78716c; margin-bottom:40px; }}
+  .card {{ background:#fff; border:1px solid #e2dfd8; border-radius:12px; padding:24px; margin-bottom:16px; }}
+  .stats {{ display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:8px; }}
+  .stat {{ background:#fff; border:1px solid #e2dfd8; border-radius:10px; padding:16px; text-align:center; }}
+  .stat-val {{ font-size:24px; font-weight:800; }}
+  .stat-lbl {{ font-size:11px; color:#78716c; margin-top:4px; }}
+  .bias-block {{ border:1px solid #e2dfd8; border-radius:10px; padding:18px; margin-bottom:12px; }}
+  .bias-header {{ display:flex; align-items:center; gap:16px; margin-bottom:10px; flex-wrap:wrap; }}
+  .bias-col {{ font-weight:700; font-size:15px; }}
+  .bias-fark {{ font-size:20px; font-weight:800; }}
+  .bias-sev {{ font-size:13px; color:#78716c; }}
+  .bias-desc {{ font-size:13px; color:#57534e; margin-bottom:12px; }}
+  table.inner {{ width:100%; border-collapse:collapse; font-size:13px; }}
+  table.inner td {{ padding:5px 8px; border-bottom:1px solid #f0eeea; }}
+  table.inner tr:last-child td {{ border-bottom:none; }}
+  table.proxy {{ width:100%; border-collapse:collapse; font-size:13px; }}
+  table.proxy th {{ background:#f7f6f3; padding:8px 12px; text-align:left; font-size:11px; letter-spacing:.08em; color:#78716c; }}
+  table.proxy td {{ padding:8px 12px; border-bottom:1px solid #f0eeea; }}
+  .corr-row {{ display:flex; align-items:center; gap:12px; margin-bottom:10px; }}
+  .corr-label {{ font-size:13px; width:200px; flex-shrink:0; }}
+  .corr-bar-bg {{ flex:1; height:8px; background:#f0eeea; border-radius:4px; overflow:hidden; }}
+  .corr-bar {{ height:100%; border-radius:4px; transition:width .3s; }}
+  .corr-val {{ font-size:13px; font-weight:700; width:56px; text-align:right; }}
+  .dist-item {{ display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0eeea; font-size:14px; }}
+  .dist-val {{ font-weight:700; }}
+  .conclusion {{ background:#fff; border:2px solid #4338ca; border-radius:12px; padding:24px; }}
+  .conclusion p {{ font-size:14px; color:#57534e; line-height:1.7; margin-bottom:10px; }}
+  .conclusion p:last-child {{ margin-bottom:0; }}
+  @media print {{ body {{ background:#fff; }} .page {{ padding:24px; }} }}
+</style></head>
+<body><div class='page'>
+
+  <h1>TargetMind AI — Bias Analiz Raporu</h1>
+  <p class='meta'>Üretildi: {now} &nbsp;·&nbsp; Veri: {len(raw)} ham kayıt &nbsp;·&nbsp; Final hedef: {len(final)} kayıt</p>
+
+  <h2>Genel Özet</h2>
+  <div class='stats'>
+    <div class='stat'><div class='stat-val'>{len(raw)}</div><div class='stat-lbl'>Ham kayıt</div></div>
+    <div class='stat'><div class='stat-val'>{len(cleaned)}</div><div class='stat-lbl'>Temizlenmiş</div></div>
+    <div class='stat'><div class='stat-val'>{len(final)}</div><div class='stat-lbl'>Final hedef kitle</div></div>
+    <div class='stat'><div class='stat-val'>{len(bias_rows)}</div><div class='stat-lbl'>Analiz edilen demografik grup</div></div>
+  </div>
+
+  <h2>Skor Dağılımı</h2>
+  <div class='card'>{dist_html}</div>
+
+  <h2>Demografik Bias Analizi</h2>
+  {bias_html if bias_html else "<p style='color:#78716c;font-size:14px'>Demografik bias tespit edilmedi.</p>"}
+
+  <h2>Metrik — Skor Korelasyonları</h2>
+  <div class='card'>
+    <p style='font-size:13px;color:#78716c;margin-bottom:16px'>
+      Korelasyonu yüksek (> 0.5) metrikler skoru domine ediyor — bu da o metrikle ilişkili demografik gruplarda bias riski yaratır.
+    </p>
+    {corr_html}
+  </div>
+
+  {'<h2>Proxy Değişken Riski</h2><div class="card"><table class="proxy"><thead><tr><th>Değişken</th><th>Hassas Değişken</th><th style="text-align:center">Cramér\'s V</th><th style="text-align:center">Risk</th></tr></thead><tbody>' + proxy_html + '</tbody></table></div>' if proxy_html else ''}
+
+  <h2>Sonuç ve Yeniden Değerlendirme</h2>
+  <div class='conclusion'>
+    <p>
+      Sistem, demografik gruplar arasındaki skor farklılıklarını tespit ederek bias kaynaklarını belirledi.
+      {'Gelir, cinsiyet ve yaş gruplarında anlamlı skor eşitsizlikleri saptandı.' if any(b['fark'] > 5 for b in bias_rows) else 'Analiz edilen demografik gruplarda skor eşitsizliği kabul edilebilir düzeyde bulundu.'}
+    </p>
+    <p>
+      Counterfactual test farklı metrik ağırlık senaryolarını karşılaştırdı. Bias'ı en aza indiren
+      ağırlık konfigürasyonu tespit edilerek skorlama bu ağırlıklarla yeniden hesaplandı.
+      {'Proxy değişken analizi ' + str(len(proxy_rows)) + ' dolaylı bias riski tespit etti.' if proxy_rows else ''}
+    </p>
+    <p>
+      Final hedef kitle <strong>{len(final)} kayıt</strong> ile oluşturuldu
+      ({round((1-len(final)/max(len(cleaned),1))*100,1)}% elenme oranı).
+      Bu liste bias düzeltilmiş skorlar üzerinden filtrelenmiştir.
+    </p>
+  </div>
+
+</div></body></html>"""
+
+        return Response(html, mimetype="text/html",
+                        headers={"Content-Disposition": "inline; filename=bias-report.html"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/api/template")
 def download_template():
     """Boş CSV şablonunu indirir."""
@@ -479,6 +700,292 @@ def download_template():
         mimetype="text/csv",
         headers={"Content-Disposition": "attachment; filename=targetmind_template.csv"},
     )
+
+
+@app.route("/api/process-report")
+def process_report():
+    """Ajan süreç raporunu HTML olarak üretir — öz-değerlendirme + çapraz eleştiri."""
+    try:
+        log_path = Path("data/pipeline_log.json")
+        log = json.loads(log_path.read_text()) if log_path.exists() else {}
+
+        from datetime import datetime
+        now = datetime.now().strftime("%d %B %Y, %H:%M")
+
+        def bias_color(s):
+            return "#ef4444" if s > 0.5 else "#f97316" if s > 0.3 else "#22c55e"
+
+        # Ajan kartları
+        ajan_html = ""
+        for ajan_adi, ajan_log in log.items():
+            oz = ajan_log.get("oz_degerlendirme", {})
+            skor = oz.get("bias_katki_skoru", 0)
+            ozet = ajan_log.get("ozet", "")
+            sonuc = oz.get("sonuc", "")
+            clr = bias_color(skor)
+            icon = "⚠" if skor > 0.3 else "✓"
+
+            detail_items = ""
+            for key in ["demografik_kaymalar", "demografik_skor_farklari", "temsil_analizi"]:
+                d = oz.get(key, {})
+                for col, info in d.items():
+                    if not isinstance(info, dict): continue
+                    fark = info.get("max_kayma", info.get("max_fark_puan", info.get("temsil_farki_puan", 0)))
+                    detail_items += f"<li><strong>{col}</strong>: {fark:.1f} puan</li>"
+
+            ajan_html += f"""
+            <div class='agent-card'>
+              <div class='agent-header'>
+                <span class='agent-icon' style='color:{clr}'>{icon}</span>
+                <span class='agent-name'>{ajan_adi}</span>
+                <span class='bias-badge' style='border-color:{clr};color:{clr}'>
+                  Bias Katkı: {skor:.3f}
+                </span>
+              </div>
+              {"<p class='agent-ozet'>" + ozet + "</p>" if ozet else ""}
+              {"<ul class='detail-list'>" + detail_items + "</ul>" if detail_items else ""}
+              {"<p class='agent-sonuc' style='color:" + clr + "'>" + sonuc + "</p>" if sonuc else ""}
+            </div>"""
+
+        # Çapraz değerlendirme
+        critique_html = "<p style='color:var(--muted);font-size:13px'>Henüz çalıştırılmadı.</p>"
+        if "Çapraz Değerlendirme" in log:
+            cv = log["Çapraz Değerlendirme"]
+            rows = ""
+            for d in cv.get("ajan_degerlendirmeleri", []):
+                clr = "#22c55e" if d.get("dogrulama") == "ONAYLANDI" else "#f97316"
+                rows += f"""<tr>
+                  <td>{d['ajan']}</td>
+                  <td style='text-align:center;font-weight:700;color:{clr}'>{d.get('dogrulama','')}</td>
+                  <td>{d.get('elestiri','')}</td>
+                  <td style='color:#f97316'>{d.get('duzeltme') or '—'}</td>
+                </tr>"""
+            critique_html = f"""
+            <p style='font-size:13px;color:#57534e;margin-bottom:16px'>{cv.get('ozet','')}</p>
+            <table class='proxy'>
+              <thead><tr>
+                <th>Ajan</th><th>Doğrulama</th><th>Eleştiri</th><th>Düzeltme</th>
+              </tr></thead>
+              <tbody>{rows}</tbody>
+            </table>"""
+
+        # Düzeltme sonuçları
+        correction_html = "<p style='color:var(--muted);font-size:13px'>Henüz çalıştırılmadı.</p>"
+        if "Düzeltilmiş Skorlama" in log:
+            ds = log["Düzeltilmiş Skorlama"]
+            rows = ""
+            for col, info in ds.get("oncesi_sonrasi", {}).items():
+                if not isinstance(info, dict): continue
+                iyilesme = info.get("iyilesme_puan", 0)
+                clr = "#22c55e" if iyilesme > 0 else "#ef4444"
+                rows += f"""<tr>
+                  <td><strong>{col}</strong></td>
+                  <td style='text-align:center'>{info.get('onceki_fark',0):.1f} puan</td>
+                  <td style='text-align:center'>→</td>
+                  <td style='text-align:center'>{info.get('sonraki_fark',0):.1f} puan</td>
+                  <td style='text-align:center;font-weight:700;color:{clr}'>{iyilesme:+.1f}</td>
+                </tr>"""
+            correction_html = f"""
+            <p style='font-size:13px;color:#57534e;margin-bottom:16px'>{ds.get('ozet','')}</p>
+            <table class='proxy'>
+              <thead><tr>
+                <th>Demografik Değişken</th>
+                <th style='text-align:center'>Önceki Fark</th>
+                <th style='text-align:center'></th>
+                <th style='text-align:center'>Sonraki Fark</th>
+                <th style='text-align:center'>İyileşme</th>
+              </tr></thead>
+              <tbody>{rows}</tbody>
+            </table>"""
+
+        # Bias sıralaması
+        siralama_html = ""
+        if "Çapraz Değerlendirme" in log:
+            for i, item in enumerate(log["Çapraz Değerlendirme"].get("bias_katki_siramasi", []), 1):
+                clr = bias_color(item["skor"])
+                w = min(item["skor"] * 100, 100)
+                siralama_html += f"""
+                <div class='corr-row'>
+                  <span class='corr-label'>{i}. {item['ajan']}</span>
+                  <div class='corr-bar-bg'><div class='corr-bar' style='width:{w:.0f}%;background:{clr}'></div></div>
+                  <span class='corr-val' style='color:{clr}'>{item['skor']:.3f}</span>
+                </div>"""
+
+        html = f"""<!DOCTYPE html>
+<html lang='tr'><head><meta charset='UTF-8'>
+<title>TargetMind AI — Süreç Raporu</title>
+<style>
+  *{{box-sizing:border-box;margin:0;padding:0}}
+  body{{font-family:system-ui,sans-serif;background:#f7f6f3;color:#1c1917;line-height:1.6}}
+  .page{{max-width:900px;margin:0 auto;padding:48px 32px}}
+  h1{{font-size:26px;font-weight:800;letter-spacing:-.03em;margin-bottom:4px}}
+  h2{{font-size:12px;letter-spacing:.15em;color:#78716c;text-transform:uppercase;margin:40px 0 16px}}
+  .meta{{font-size:13px;color:#78716c;margin-bottom:40px}}
+  .agent-card{{background:#fff;border:1px solid #e2dfd8;border-radius:12px;padding:20px;margin-bottom:12px}}
+  .agent-header{{display:flex;align-items:center;gap:12px;margin-bottom:10px;flex-wrap:wrap}}
+  .agent-icon{{font-size:18px;font-weight:800}}
+  .agent-name{{font-size:15px;font-weight:700;flex:1}}
+  .bias-badge{{font-size:12px;padding:3px 10px;border:1px solid;border-radius:20px;font-weight:600}}
+  .agent-ozet{{font-size:13px;color:#57534e;margin-bottom:8px}}
+  .agent-sonuc{{font-size:13px;font-weight:600;margin-top:8px}}
+  .detail-list{{font-size:13px;color:#57534e;padding-left:20px;margin:8px 0}}
+  .detail-list li{{margin-bottom:4px}}
+  .card{{background:#fff;border:1px solid #e2dfd8;border-radius:12px;padding:24px;margin-bottom:16px}}
+  table.proxy{{width:100%;border-collapse:collapse;font-size:13px}}
+  table.proxy th{{background:#f7f6f3;padding:8px 12px;text-align:left;font-size:11px;letter-spacing:.08em;color:#78716c}}
+  table.proxy td{{padding:8px 12px;border-bottom:1px solid #f0eeea}}
+  .corr-row{{display:flex;align-items:center;gap:12px;margin-bottom:10px}}
+  .corr-label{{font-size:13px;width:220px;flex-shrink:0}}
+  .corr-bar-bg{{flex:1;height:8px;background:#f0eeea;border-radius:4px;overflow:hidden}}
+  .corr-bar{{height:100%;border-radius:4px}}
+  .corr-val{{font-size:13px;font-weight:700;width:50px;text-align:right}}
+  @media print{{body{{background:#fff}}.page{{padding:24px}}}}
+</style></head>
+<body><div class='page'>
+
+  <h1>TargetMind AI — Süreç Raporu</h1>
+  <p class='meta'>Üretildi: {now} &nbsp;·&nbsp; 7 Ajan · Öz-Farkındalıklı Pipeline</p>
+
+  <h2>Ajan Öz-Değerlendirmeleri</h2>
+  {ajan_html or "<p style='color:#78716c;font-size:14px'>Henüz çalıştırılmadı.</p>"}
+
+  <h2>Bias Katkı Sıralaması</h2>
+  <div class='card'>
+    <p style='font-size:13px;color:#57534e;margin-bottom:16px'>
+      Hangi ajan pipeline'a en fazla bias kattı?
+    </p>
+    {siralama_html or "<p style='color:#78716c;font-size:13px'>Henüz hesaplanmadı.</p>"}
+  </div>
+
+  <h2>Çapraz Ajan Eleştirisi</h2>
+  <div class='card'>{critique_html}</div>
+
+  <h2>Düzeltme Sonuçları</h2>
+  <div class='card'>{correction_html}</div>
+
+</div></body></html>"""
+
+        return Response(html, mimetype="text/html",
+                        headers={"Content-Disposition": "inline; filename=surec-raporu.html"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/pool-report")
+def pool_report():
+    """Optimal müşteri havuzu raporunu HTML olarak üretir."""
+    try:
+        havuz_path = Path("data/optimal_kitle_raporu.json")
+        havuz = json.loads(havuz_path.read_text()) if havuz_path.exists() else {}
+
+        from datetime import datetime
+        now = datetime.now().strftime("%d %B %Y, %H:%M")
+
+        # Demografik dağılım
+        demo_html = ""
+        for key, val in havuz.items():
+            if key.endswith("_dagilimi") and isinstance(val, dict):
+                col = key.replace("_dagilimi", "")
+                rows = "".join(
+                    f"<tr><td>{k}</td><td style='text-align:right;font-weight:600'>{v}</td></tr>"
+                    for k, v in sorted(val.items(), key=lambda x: -x[1])
+                )
+                demo_html += f"""
+                <div class='demo-block'>
+                  <p class='demo-col'>{col}</p>
+                  <table class='inner'><tbody>{rows}</tbody></table>
+                </div>"""
+
+        # Skor dağılımı
+        skor_dist = havuz.get("skor_dagilimi", {})
+        dist_html = "".join(
+            f"<div class='dist-item'><span>{k}</span><span style='font-weight:700'>{v}</span></div>"
+            for k, v in sorted(skor_dist.items(),
+                key=lambda x: ["Düşük","Orta","Yüksek","Prime","nan"].index(x[0])
+                if x[0] in ["Düşük","Orta","Yüksek","Prime","nan"] else 99)
+        )
+
+        # Optimal 20 tablosu
+        optimal_20 = havuz.get("optimal_20", [])
+        tablo_html = ""
+        if optimal_20:
+            keys = list(optimal_20[0].keys())
+            headers = "".join(f"<th>{k}</th>" for k in keys)
+            rows = ""
+            for i, row in enumerate(optimal_20):
+                bg = "background:rgba(67,56,202,.04)" if i < 3 else ""
+                cells = "".join(f"<td>{v}</td>" for v in row.values())
+                rows += f"<tr style='{bg}'>{cells}</tr>"
+            tablo_html = f"""
+            <div style='overflow-x:auto;border-radius:10px;border:1px solid #e2dfd8'>
+              <table style='width:100%;border-collapse:collapse;font-size:12px'>
+                <thead><tr style='background:#f7f6f3'>{headers}</tr></thead>
+                <tbody>{rows}</tbody>
+              </table>
+            </div>"""
+
+        html = f"""<!DOCTYPE html>
+<html lang='tr'><head><meta charset='UTF-8'>
+<title>TargetMind AI — Optimal Kitle Raporu</title>
+<style>
+  *{{box-sizing:border-box;margin:0;padding:0}}
+  body{{font-family:system-ui,sans-serif;background:#f7f6f3;color:#1c1917;line-height:1.6}}
+  .page{{max-width:900px;margin:0 auto;padding:48px 32px}}
+  h1{{font-size:26px;font-weight:800;letter-spacing:-.03em;margin-bottom:4px}}
+  h2{{font-size:12px;letter-spacing:.15em;color:#78716c;text-transform:uppercase;margin:40px 0 16px}}
+  .meta{{font-size:13px;color:#78716c;margin-bottom:40px}}
+  .stats{{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:8px}}
+  .stat{{background:#fff;border:1px solid #e2dfd8;border-radius:10px;padding:16px;text-align:center}}
+  .stat-val{{font-size:28px;font-weight:800}}
+  .stat-lbl{{font-size:11px;color:#78716c;margin-top:4px}}
+  .card{{background:#fff;border:1px solid #e2dfd8;border-radius:12px;padding:24px;margin-bottom:16px}}
+  .demo-grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px}}
+  .demo-block{{background:#fff;border:1px solid #e2dfd8;border-radius:10px;padding:16px}}
+  .demo-col{{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#78716c;margin-bottom:10px;font-weight:600}}
+  table.inner{{width:100%;border-collapse:collapse;font-size:13px}}
+  table.inner td{{padding:5px 6px;border-bottom:1px solid #f0eeea}}
+  table.inner tr:last-child td{{border-bottom:none}}
+  thead tr{{background:#f7f6f3;border-bottom:1px solid #e2dfd8}}
+  th{{padding:10px 12px;text-align:left;font-size:11px;letter-spacing:.08em;color:#78716c}}
+  td{{padding:9px 12px;border-bottom:1px solid #f0eeea}}
+  .dist-item{{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f0eeea;font-size:14px}}
+  @media print{{body{{background:#fff}}.page{{padding:24px}}}}
+</style></head>
+<body><div class='page'>
+
+  <h1>TargetMind AI — Optimal Kitle Raporu</h1>
+  <p class='meta'>Üretildi: {now} &nbsp;·&nbsp; Bias düzeltilmiş skorlarla oluşturuldu</p>
+
+  <h2>Genel Özet</h2>
+  <div class='stats'>
+    <div class='stat'>
+      <div class='stat-val' style='color:#4338ca'>{havuz.get('toplam_havuz','—')}</div>
+      <div class='stat-lbl'>Toplam Havuz</div>
+    </div>
+    <div class='stat'>
+      <div class='stat-val'>{havuz.get('ort_skor','—')}</div>
+      <div class='stat-lbl'>Ortalama Skor</div>
+    </div>
+    <div class='stat'>
+      <div class='stat-val' style='color:#dc2626'>%{havuz.get('elenme_orani','—')}</div>
+      <div class='stat-lbl'>Elenme Oranı</div>
+    </div>
+  </div>
+
+  <h2>Skor Dağılımı</h2>
+  <div class='card'>{dist_html}</div>
+
+  {"<h2>Demografik Dağılım</h2><div class='demo-grid'>" + demo_html + "</div>" if demo_html else ""}
+
+  <h2>En İyi 20 Müşteri</h2>
+  {tablo_html or "<p style='color:#78716c;font-size:14px'>Henüz hesaplanmadı.</p>"}
+
+</div></body></html>"""
+
+        return Response(html, mimetype="text/html",
+                        headers={"Content-Disposition": "inline; filename=optimal-kitle.html"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route("/api/chat", methods=["POST"])
@@ -544,17 +1051,16 @@ def chat():
 
     analysis_context = "\n".join(context_parts)
 
-    system_prompt = f"""Sen TargetMind AI'ın analiz asistanısın. Bu sistem herhangi bir CSV verisini 8 adımlı bir pipeline'dan geçirerek en yüksek potansiyelli kayıtları bulur ve demografik bias'ı tespit eder.
+    system_prompt = f"""Sen TargetMind AI'ın analiz asistanısın. Bu sistem herhangi bir CSV verisini 7 ajanlı öz-farkındalıklı bir pipeline'dan geçirerek en yüksek potansiyelli kayıtları bulur ve demografik bias'ı tespit eder.
 
-Pipeline adımları:
-1. Veri Temizleme — duplikasyon, negatif değerler, IQR aykırı değer tespiti, medyan/mod doldurma
-2. Segmentasyon — segment dağılımı ve metrik istatistikleri
-3. Skorlama & Bias Eşiği — metric kolonlardan 0-100 potansiyel skor, eşik kontrolü
-4. Bias Tespiti — temizleme kararları denetimi + demografik grup skor farklılıkları
-5. Proxy Değişken Tespiti — Cramer's V ile dolaylı bias riski taşıyan kolonlar
-6. Counterfactual Test — farklı ağırlık senaryolarında bias azaltma deneyi
-7. Final Hedef Kitle — minimum skoru geçen kayıtlar
-8. Gelecek Potansiyel — engagement skoru ile uzun vadeli değer tahmini
+7 Ajan Pipeline:
+1. Veri Temizleme — duplikasyon, negatif değerler, IQR aykırı değer tespiti, medyan/mod doldurma. Kendi kararlarının demografik dağılımı ne kadar kaydırdığını ölçer (bias katkı skoru).
+2. Segmentasyon — segment dağılımı, metrik istatistikleri, demografik temsil analizi.
+3. İlk Skorlama — metric kolonlardan 0-100 potansiyel skor. Ağırlık kararlarının yarattığı demografik skor farklarını ölçer.
+4. Proxy & Bias Tespiti — Cramer's V ile proxy değişkenler + demografik segment farklılıkları birlikte analiz edilir.
+5. Çapraz Ajan Değerlendirmesi — Tüm ajanların öz-değerlendirmeleri doğrulanır, çelişkiler bulunur, düzeltme önerileri üretilir.
+6. Düzeltilmiş Skorlama — Eleştirmen önerileriyle yeni ağırlıklarla yeniden skorlama, öncesi/sonrası bias karşılaştırması.
+7. Final Optimizasyon & Raporlar — Optimal havuz oluşturulur, Süreç Raporu + Kitle Raporu üretilir.
 
 Mevcut analiz durumu:
 {analysis_context}

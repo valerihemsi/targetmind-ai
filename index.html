@@ -767,6 +767,20 @@
     <div class="pipeline-header">
       <div class="pipeline-title">Analiz çalışıyor</div>
       <div class="pipeline-counter" id="pipeline-counter">0 / 7 tamamlandı</div>
+      <div style="display:flex;gap:8px">
+        <a id="surec-btn" href="/api/process-report" target="_blank" style="
+          display:none;padding:6px 12px;border-radius:6px;font-size:11px;
+          font-family:var(--mono);letter-spacing:.08em;text-transform:uppercase;
+          border:1px solid var(--indigo);color:var(--indigo);
+          background:transparent;text-decoration:none;
+        ">Süreç Raporu ↗</a>
+        <a id="kitle-btn" href="/api/pool-report" target="_blank" style="
+          display:none;padding:6px 12px;border-radius:6px;font-size:11px;
+          font-family:var(--mono);letter-spacing:.08em;text-transform:uppercase;
+          border:1px solid var(--green);color:var(--green);
+          background:transparent;text-decoration:none;
+        ">Kitle Raporu ↗</a>
+      </div>
     </div>
 
     <div class="progress-track">
@@ -901,9 +915,27 @@
     <div class="dash-section">
       <div class="dash-label" style="margin-bottom:12px">
         Tüm Final Hedef Kitle
-        <button id="download-btn" onclick="downloadCSV()" style="margin-left:auto">
-          ↓ CSV İndir
-        </button>
+        <div style="margin-left:auto;display:flex;gap:8px">
+          <a href="/api/process-report" target="_blank" style="
+            padding:6px 14px;border-radius:6px;font-size:12px;font-weight:600;
+            border:1px solid var(--indigo);color:var(--indigo);
+            background:transparent;text-decoration:none;
+            display:inline-flex;align-items:center;gap:5px;
+          ">🔍 Süreç Raporu</a>
+          <a href="/api/pool-report" target="_blank" style="
+            padding:6px 14px;border-radius:6px;font-size:12px;font-weight:600;
+            border:1px solid var(--green);color:var(--green);
+            background:transparent;text-decoration:none;
+            display:inline-flex;align-items:center;gap:5px;
+          ">⭐ Kitle Raporu</a>
+          <a href="/api/report" target="_blank" style="
+            padding:6px 14px;border-radius:6px;font-size:12px;font-weight:600;
+            border:1px solid var(--border);color:var(--muted);
+            background:transparent;text-decoration:none;
+            display:inline-flex;align-items:center;gap:5px;
+          ">📋 Bias Raporu</a>
+          <button id="download-btn" onclick="downloadCSV()">↓ CSV İndir</button>
+        </div>
       </div>
       <div class="table-wrap">
         <table id="customer-table">
@@ -936,23 +968,21 @@
 const AGENT_NAMES = [
   "Veri Temizleme",
   "Segmentasyon",
-  "Skorlama & Eşik Kontrolü",
-  "Bias Tespiti",
-  "Proxy Değişken Tespiti",
-  "Eleştirmen",
-  "Yeniden Optimizasyon",
-  "Gelecek Harcama Potansiyeli",
+  "İlk Skorlama",
+  "Proxy & Bias Tespiti",
+  "Çapraz Ajan Değerlendirmesi",
+  "Düzeltilmiş Skorlama",
+  "Final Optimizasyon & Raporlar",
 ];
 
 const AGENT_DESCS = [
-  "Eksik değerler, aykırı değerler ve format tutarsızlıkları temizleniyor",
-  "Müşteriler davranış ve potansiyele göre segmentlere ayrılıyor",
-  "Potansiyel skorları hesaplanıyor, bias eşiği kontrol ediliyor",
-  "Demografik gruplar arası sistematik dışlama analiz ediliyor",
-  "Dolaylı bias üreten proxy değişkenler tespit ediliyor",
-  "Kararlar counterfactual test ile sayısal olarak sorgulanıyor",
-  "Bias bulgularına göre final hedef kitle oluşturuluyor",
-  "Bağlılık, sadakat ve ikna edilebilirlik ile gelecek potansiyel hesaplanıyor",
+  "Veri temizleniyor ve temizleme kararlarının bias katkısı öz-değerlendiriliyor",
+  "Segmentasyon yapılıyor ve demografik temsil analiz ediliyor",
+  "İlk skor hesaplanıyor ve ağırlık kararlarının yarattığı demografik fark ölçülüyor",
+  "Proxy değişkenler ve demografik bias birlikte tespit ediliyor",
+  "Ajanların öz-değerlendirmeleri çapraz kontrol ediliyor ve düzeltme önerileri üretiliyor",
+  "Eleştirmen önerileriyle yeniden skorlama yapılıyor ve bias azaltması ölçülüyor",
+  "Optimal havuz oluşturuluyor, Süreç Raporu ve Kitle Raporu üretiliyor",
 ];
 
 let tableData = [];
@@ -1015,8 +1045,8 @@ function setAgentDone(idx, summary) {
   }
 
   doneCount++;
-  document.getElementById("pipeline-counter").textContent = `${doneCount} / 7 tamamlandı`;
-  document.getElementById("progress-fill").style.width = `${(doneCount / 7) * 100}%`;
+  document.getElementById("pipeline-counter").textContent = `${doneCount} / ${AGENT_NAMES.length} tamamlandı`;
+  document.getElementById("progress-fill").style.width = `${(doneCount / AGENT_NAMES.length) * 100}%`;
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -1221,6 +1251,8 @@ function handlePipelineMsg(msg) {
   } else if (msg.type === "agent_done") {
     setAgentDone(msg.agent_index, msg.summary);
   } else if (msg.type === "complete") {
+    document.getElementById("surec-btn").style.display = "inline-flex";
+    document.getElementById("kitle-btn").style.display = "inline-flex";
     setTimeout(() => showDashboard(msg.dashboard), 800);
   } else if (msg.type === "error") {
     errEl.textContent   = "⚠ " + (msg.message || "Bilinmeyen hata");

@@ -1,11 +1,17 @@
 .venv/
 __pycache__/
 *.pyc
+*.pyo
+.env
+.DS_Store
+
+# Generated data files (recreated on each run)
 data/customers.csv
 data/customers_cleaned.csv
 data/customers_scored.csv
 data/final_targets.csv
 data/optimal_targets.csv
+data/pipeline_log.json
+data/surec_raporu.json
+data/optimal_kitle_raporu.json
 data/column_mapping.json
-.env
-*.DS_Store
