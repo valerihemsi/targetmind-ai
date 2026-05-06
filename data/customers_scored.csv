@@ -1,0 +1,321 @@
+game_id,name,genre,platform,esrb_rating,rating,ratings_count,metacritic,added,playtime,reviews_count,potansiyel_skor,skor_segmenti,gelecek_potansiyel,potansiyel_kategori
+3498,Grand Theft Auto V,Action,PC,Mature,4.47,1550.0,92.0,7833.0,6.0,7520,48.01,Orta,48.01,Orta
+3328,The Witcher 3: Wild Hunt,Action,PC,Mature,4.64,1550.0,92.0,7833.0,6.0,7315,49.63,Orta,49.63,Orta
+4200,Portal 2,Shooter,PC,Everyone 10+,4.58,1550.0,95.0,7833.0,11.0,6159,53.76,Yüksek,53.76,Yüksek
+4291,Counter-Strike: Global Offensive,Shooter,PC,Mature,3.57,3637.0,81.0,18362.0,6.0,3674,58.95,Yüksek,58.95,Yüksek
+5286,Tomb Raider (2013),Action,PC,Mature,4.06,4095.0,86.0,17822.0,10.0,4129,69.78,Yüksek,69.78,Yüksek
+13536,Portal,Action,PC,Teen,4.49,5021.0,90.0,17814.0,4.0,5066,76.04,Prime,76.04,Prime
+12020,Left 4 Dead 2,Action,PC,Mature,4.1,3410.0,89.0,17508.0,9.0,3437,67.79,Yüksek,67.79,Yüksek
+28,Red Dead Redemption 2,Action,PC,Mature,4.59,1550.0,96.0,16884.0,21.0,5630,74.97,Prime,74.97,Prime
+5679,The Elder Scrolls V: Skyrim,Action,PC,Mature,4.42,4924.0,94.0,16872.0,6.0,4982,76.84,Prime,76.84,Prime
+13537,Half-Life 2,Action,PC,Mature,4.48,4102.0,96.0,16117.0,7.0,4130,74.5,Prime,74.5,Prime
+4062,BioShock Infinite,Action,PC,Mature,4.38,4172.0,94.0,16117.0,12.0,4215,75.91,Prime,75.91,Prime
+802,Borderlands 2,Action,PC,Mature,4.01,3319.0,89.0,16018.0,11.0,3340,65.45,Yüksek,65.45,Yüksek
+3439,Life is Strange,Adventure,PC,Mature,4.12,3773.0,83.0,15915.0,6.0,3821,61.92,Yüksek,61.92,Yüksek
+4286,BioShock,Action,PC,Mature,4.36,3364.0,96.0,14774.0,3.0,3408,65.68,Yüksek,65.68,Yüksek
+32,Destiny 2,Action,PC,Teen,3.52,2670.0,82.0,14587.0,6.0,2696,49.02,Orta,49.02,Orta
+58175,God of War (2018),Action,PC,Mature,4.54,1550.0,94.0,14566.0,15.0,5260,66.02,Yüksek,66.02,Yüksek
+3070,Fallout 4,Action,PC,Mature,3.81,3430.0,84.0,14296.0,6.0,3467,55.51,Yüksek,55.51,Yüksek
+1030,Limbo,Action,PC,Teen,4.14,3404.0,88.0,14152.0,3.0,3447,58.55,Yüksek,58.55,Yüksek
+3939,PAYDAY 2,Action,PC,Adults Only,3.52,2243.0,79.0,14146.0,9.0,2266,46.86,Orta,46.86,Orta
+11859,Team Fortress 2,Action,PC,Mature,3.68,2940.0,92.0,14051.0,8.0,2969,57.33,Yüksek,57.33,Yüksek
+2454,DOOM (2016),Action,PC,Mature,4.38,3633.0,85.0,14031.0,10.0,3674,64.39,Yüksek,64.39,Yüksek
+41494,Cyberpunk 2077,Action,PC,Mature,4.23,3014.0,73.0,13972.0,29.0,3122,65.87,Yüksek,65.87,Yüksek
+422,Terraria,Action,PC,Teen,4.07,2470.0,81.0,13520.0,15.0,2498,56.84,Yüksek,56.84,Yüksek
+4459,Grand Theft Auto IV,Action,PC,Mature,4.26,3109.0,95.0,13203.0,10.0,3144,65.03,Yüksek,65.03,Yüksek
+10213,Dota 2,Action,PC,Unrated,3.07,2859.0,90.0,13187.0,14.0,2899,52.51,Yüksek,52.51,Yüksek
+766,Warframe,Action,PC,Unrated,3.42,2115.0,73.0,13149.0,8.0,2130,40.01,Orta,40.01,Orta
+3272,Rocket League,Sports,PC,Everyone,3.93,2861.0,86.0,12844.0,21.0,2885,62.44,Yüksek,62.44,Yüksek
+278,Horizon Zero Dawn,Action,PC,Teen,4.27,3774.0,89.0,12828.0,11.0,3824,64.75,Yüksek,64.75,Yüksek
+29028,Metro 2033,Action,PC,Mature,3.94,2293.0,79.0,12760.0,2.0,2300,44.49,Orta,44.49,Orta
+7689,Rise of the Tomb Raider,Action,PC,Unrated,4.04,2804.0,86.0,12410.0,14.0,2828,58.18,Yüksek,58.18,Yüksek
+3287,Batman: Arkham Knight,Action,PC,Mature,4.24,2687.0,81.0,12288.0,19.0,2711,59.91,Yüksek,59.91,Yüksek
+3192,Metal Gear Solid V: The Phantom Pain,Action,PC,Mature,4.16,2529.0,91.0,12195.0,22.0,2548,65.48,Yüksek,65.48,Yüksek
+416,Grand Theft Auto: San Andreas,Action,PC,Mature,4.5,4064.0,93.0,12133.0,2.0,4093,63.51,Yüksek,63.51,Yüksek
+16944,The Witcher 2: Assassins of Kings Enhanced Edition,RPG,PC,Mature,4.17,2183.0,88.0,12045.0,7.0,2198,52.96,Yüksek,52.96,Yüksek
+290856,Apex Legends,Action,PC,Teen,3.63,2417.0,80.0,12023.0,5.0,2443,43.29,Orta,43.29,Orta
+17822,The Witcher: Enhanced Edition Director's Cut,Action,PC,Mature,4.06,2055.0,86.0,11936.0,5.0,2070,48.91,Orta,48.91,Orta
+9767,Hollow Knight,Action,PC,Everyone 10+,4.4,2736.0,88.0,11876.0,7.0,2796,57.16,Yüksek,57.16,Yüksek
+11973,Middle-earth: Shadow of Mordor,Action,PC,Mature,3.91,2554.0,85.0,11776.0,13.0,2585,53.76,Yüksek,53.76,Yüksek
+19103,Half-Life 2: Lost Coast,Action,PC,Mature,3.45,1175.0,83.0,11696.0,1.0,1178,35.0,Orta,35.0,Orta
+23027,The Walking Dead: Season 1,Action,PC,Mature,4.36,2487.0,92.0,11682.0,8.0,2512,58.18,Yüksek,58.18,Yüksek
+41,Little Nightmares,Action,PC,Unrated,4.04,1639.0,81.0,11676.0,3.0,1672,42.7,Orta,42.7,Orta
+4427,BioShock 2,Action,PC,Mature,4.07,1963.0,88.0,11565.0,3.0,1978,47.84,Orta,47.84,Orta
+18080,Half-Life,Action,PC,Mature,4.37,2446.0,96.0,11535.0,3.0,2470,56.85,Yüksek,56.85,Yüksek
+19710,Half-Life 2: Episode One,Action,PC,Mature,4.38,2068.0,87.0,11401.0,4.0,2077,51.06,Yüksek,51.06,Yüksek
+19709,Half-Life 2: Episode Two,Action,PC,Mature,4.46,2018.0,90.0,11291.0,5.0,2028,53.65,Yüksek,53.65,Yüksek
+11936,Half-Life 2: Deathmatch,Action,PC,Mature,3.29,909.0,83.0,11254.0,1.0,912,31.68,Orta,31.68,Orta
+2551,Dark Souls III,Action,PC,Mature,4.4,2779.0,89.0,11239.0,29.0,2807,70.61,Prime,70.61,Prime
+654,Stardew Valley,RPG,PC,Everyone 10+,4.39,2463.0,89.0,11033.0,13.0,2497,58.88,Yüksek,58.88,Yüksek
+10754,BioShock Remastered,Shooter,PC,Mature,4.24,1421.0,83.0,10925.0,4.0,1438,44.2,Orta,44.2,Orta
+4252,Mirror's Edge,Action,PC,Teen,4.07,2385.0,81.0,10922.0,3.0,2409,44.88,Orta,44.88,Orta
+3612,Hotline Miami,Action,PC,Unrated,4.38,2648.0,85.0,10909.0,5.0,2678,52.25,Yüksek,52.25,Yüksek
+10035,Hitman,Action,PC,Adults Only,3.93,2033.0,83.0,10889.0,7.0,2045,45.59,Orta,45.59,Orta
+3790,Outlast,Action,PC,Mature,3.75,1864.0,80.0,10880.0,3.0,1877,39.08,Orta,39.08,Orta
+4161,Far Cry 3,Action,PC,Mature,4.26,2997.0,88.0,10833.0,16.0,3033,60.88,Yüksek,60.88,Yüksek
+1447,Deus Ex: Mankind Divided,Action,PC,Mature,3.96,2016.0,83.0,10798.0,7.0,2038,45.66,Orta,45.66,Orta
+10142,PlayerUnknown’s Battlegrounds,Action,PC,Unrated,3.27,2001.0,81.0,10700.0,29.0,2024,51.57,Yüksek,51.57,Yüksek
+10533,Path of Exile,Action,PC,Unrated,3.65,1644.0,86.0,10645.0,6.0,1656,41.88,Orta,41.88,Orta
+19487,Alan Wake,Action,PC,Teen,4.09,2293.0,83.0,10509.0,5.0,2312,46.34,Orta,46.34,Orta
+58134,Marvel's Spider-Man,Action,PC,Teen,4.45,3714.0,87.0,10496.0,6.0,3788,58.34,Yüksek,58.34,Yüksek
+3696,Wolfenstein: The New Order,Action,PC,Mature,4.18,2519.0,81.0,10475.0,12.0,2540,51.39,Yüksek,51.39,Yüksek
+29177,Detroit: Become Human,Action,PC,Mature,4.34,3328.0,79.0,10454.0,10.0,3398,53.92,Yüksek,53.92,Yüksek
+9721,Garry's Mod,Action,PC,Rating Pending,3.81,1610.0,83.0,10444.0,14.0,1623,46.37,Orta,46.37,Orta
+13668,Amnesia: The Dark Descent,Action,PC,Mature,3.65,1238.0,85.0,10437.0,2.0,1257,36.85,Orta,36.85,Orta
+4332,Spec Ops: The Line,Action,PC,Mature,4.1,1949.0,76.0,10409.0,5.0,1969,41.17,Orta,41.17,Orta
+11935,Half-Life Deathmatch: Source,Action,PC,Mature,3.21,729.0,83.0,10389.0,1.0,730,28.81,Düşük,28.81,Düşük
+4386,Saints Row: The Third,Action,PC,Mature,3.95,2077.0,84.0,10351.0,14.0,2093,50.01,Yüksek,50.01,Yüksek
+39,Prey,Action,PC,Mature,4.28,2243.0,80.0,10251.0,10.0,2282,49.08,Orta,49.08,Orta
+5563,Fallout: New Vegas,Action,PC,Mature,4.43,2632.0,84.0,10246.0,12.0,2655,55.46,Yüksek,55.46,Yüksek
+4828,Borderlands,Action,PC,Adults Only,3.82,2126.0,81.0,10149.0,10.0,2144,44.58,Orta,44.58,Orta
+12447,The Elder Scrolls V: Skyrim Special Edition,Action,PC,Mature,4.45,1972.0,74.0,10086.0,9.0,1982,45.53,Orta,45.53,Orta
+864,Dishonored 2,Action,PC,Mature,4.26,2030.0,86.0,10029.0,12.0,2052,52.06,Yüksek,52.06,Yüksek
+4248,Dishonored,Action,PC,Mature,4.38,2738.0,91.0,9993.0,9.0,2771,56.83,Yüksek,56.83,Yüksek
+9882,Don't Starve Together,Action,PC,Unrated,3.77,1399.0,83.0,9966.0,7.0,1412,39.99,Orta,39.99,Orta
+12536,Hellblade: Senua's Sacrifice,Action,PC,Mature,4.22,2306.0,83.0,9927.0,6.0,2362,47.33,Orta,47.33,Orta
+430,Grand Theft Auto: Vice City,Action,PC,Mature,4.44,3104.0,94.0,9906.0,2.0,3122,55.98,Yüksek,55.98,Yüksek
+10243,Company of Heroes 2,Strategy,PC,Mature,3.1,872.0,80.0,9879.0,4.0,876,27.84,Düşük,27.84,Düşük
+17540,Injustice: Gods Among Us Ultimate Edition,Action,PC,Mature,3.53,1427.0,80.0,9863.0,5.0,1432,34.82,Orta,34.82,Orta
+3841,Assassin’s Creed IV: Black Flag,Action,PC,Mature,4.16,2659.0,85.0,9795.0,25.0,2684,60.93,Yüksek,60.93,Yüksek
+5583,Hitman: Absolution,Action,PC,Mature,3.76,1652.0,79.0,9778.0,7.0,1666,38.53,Orta,38.53,Orta
+13633,Sid Meier's Civilization V,Strategy,PC,Everyone 10+,4.29,2025.0,90.0,9776.0,27.0,2035,63.41,Yüksek,63.41,Yüksek
+58812,Control,Action,PC,Mature,4.14,2045.0,84.0,9734.0,6.0,2092,45.71,Orta,45.71,Orta
+4514,L.A. Noire,Action,PC,Mature,4.16,2071.0,83.0,9730.0,7.0,2091,46.1,Orta,46.1,Orta
+3144,Super Meat Boy,Indie,PC,Unrated,3.98,1771.0,87.0,9697.0,3.0,1782,42.7,Orta,42.7,Orta
+362,For Honor,Action,PC,Mature,3.3,1681.0,76.0,9683.0,8.0,1690,33.17,Orta,33.17,Orta
+257201,Star Wars Jedi: Fallen Order,Action,PC,Teen,4.13,2277.0,80.0,9664.0,8.0,2341,45.61,Orta,45.61,Orta
+2462,Uncharted 4: A Thief’s End,Action,PlayStation,Teen,4.48,3739.0,93.0,9623.0,0.0,3777,56.76,Yüksek,56.76,Yüksek
+11934,Counter-Strike: Source,Shooter,PC,Mature,3.75,1530.0,88.0,9548.0,7.0,1536,42.31,Orta,42.31,Orta
+4570,Dead Space (2008),Action,PC,Mature,4.39,2209.0,86.0,9543.0,3.0,2229,47.64,Orta,47.64,Orta
+4806,Mass Effect 2,Action,PC,Mature,4.46,3086.0,94.0,9528.0,22.0,3110,67.99,Yüksek,67.99,Yüksek
+50738,Death Stranding,Action,PC,Mature,4.31,2108.0,84.0,9398.0,11.0,2162,50.18,Yüksek,50.18,Yüksek
+3017,Just Cause 3,Action,PC,Mature,3.4,1585.0,74.0,9382.0,7.0,1597,31.57,Orta,31.57,Orta
+3604,Metro: Last Light Redux,Action,PC,Unrated,4.13,1701.0,76.0,9370.0,7.0,1723,40.03,Orta,40.03,Orta
+19301,Counter-Strike,Action,PC,Unrated,4.06,1655.0,88.0,9324.0,3.0,1662,42.92,Orta,42.92,Orta
+3603,Metro 2033 Redux,Action,PC,Mature,4.1,1928.0,88.0,9323.0,6.0,1950,46.3,Orta,46.3,Orta
+3543,Borderlands: The Pre-Sequel,Action,PC,Unrated,3.56,1385.0,75.0,9323.0,6.0,1394,32.07,Orta,32.07,Orta
+13535,Left 4 Dead,Action,PC,Mature,4.11,1699.0,89.0,9242.0,5.0,1713,45.22,Orta,45.22,Orta
+11142,BioShock 2 Remastered,Action,PC,Mature,4.0,1012.0,83.0,9177.0,4.0,1020,37.45,Orta,37.45,Orta
+274755,Hades,Action,PC,Teen,4.42,2091.0,93.0,9140.0,10.0,2135,54.86,Yüksek,54.86,Yüksek
+3747,Metal Gear Solid V: Ground Zeroes,Action,PC,Unrated,3.91,1716.0,80.0,9133.0,3.0,1723,37.23,Orta,37.23,Orta
+10141,NieR:Automata,Action,PC,Mature,4.37,2168.0,86.0,9080.0,13.0,2204,52.8,Yüksek,52.8,Yüksek
+108,Mortal Kombat X,Action,PC,Mature,3.86,2115.0,76.0,9034.0,7.0,2125,38.64,Orta,38.64,Orta
+4166,Mass Effect,Action,PC,Mature,4.39,2702.0,89.0,9016.0,9.0,2724,54.17,Yüksek,54.17,Yüksek
+3636,The Last Of Us Remastered,Action,PlayStation,Mature,4.69,2852.0,95.0,8987.0,16.0,2882,65.14,Yüksek,65.14,Yüksek
+22509,Minecraft,Action,PC,Everyone 10+,4.44,3137.0,83.0,8970.0,26.0,3199,63.84,Yüksek,63.84,Yüksek
+4513,Just Cause 2,Action,PC,Mature,3.62,1364.0,84.0,8935.0,3.0,1371,34.81,Orta,34.81,Orta
+326292,Fall Guys: Ultimate Knockout,Action,PC,Everyone,3.73,1355.0,80.0,8924.0,6.0,1381,35.57,Orta,35.57,Orta
+11147,ARK: Survival Of The Fittest,Action,PC,Teen,2.6,523.0,83.0,8920.0,1.0,524,19.82,Düşük,19.82,Düşük
+46889,Monster Hunter: World,Action,PC,Teen,4.01,1628.0,89.0,8837.0,15.0,1649,49.59,Orta,49.59,Orta
+3191,Mad Max,Action,PC,Mature,3.78,1755.0,73.0,8828.0,11.0,1775,36.98,Orta,36.98,Orta
+480,Resident Evil 7: Biohazard,Action,PC,Mature,4.33,1988.0,85.0,8784.0,10.0,2024,48.81,Orta,48.81,Orta
+25,Middle-earth: Shadow of War,Action,PC,Mature,3.86,1385.0,82.0,8767.0,13.0,1400,42.11,Orta,42.11,Orta
+613,Bastion,Action,PC,Unrated,4.14,1670.0,86.0,8754.0,4.0,1689,42.41,Orta,42.41,Orta
+17576,Batman: Arkham City - Game of the Year Edition,Action,PC,Teen,4.4,1466.0,91.0,8729.0,9.0,1471,49.76,Orta,49.76,Orta
+923,Titanfall 2,Action,PC,Mature,4.31,2080.0,87.0,8715.0,5.0,2119,46.81,Orta,46.81,Orta
+10989,Paladins,Action,PC,Teen,3.08,1423.0,78.0,8702.0,6.0,1427,28.25,Düşük,28.25,Düşük
+9810,ARK: Survival Evolved,Action,PC,Unrated,3.08,670.0,70.0,8687.0,6.0,674,20.91,Düşük,20.91,Düşük
+3387,Bloodborne,Action,PlayStation,Mature,4.41,2455.0,92.0,8675.0,12.0,2492,56.26,Yüksek,56.26,Yüksek
+10065,Cities: Skylines,Strategy,PC,Everyone,4.12,1531.0,85.0,8655.0,9.0,1542,44.09,Orta,44.09,Orta
+3254,Journey,Adventure,PC,Unrated,4.32,2462.0,92.0,8627.0,2.0,2482,49.1,Orta,49.1,Orta
+13627,Undertale,RPG,PC,Everyone 10+,4.35,1892.0,92.0,8609.0,5.0,1926,48.88,Orta,48.88,Orta
+17572,Batman: Arkham Asylum Game of the Year Edition,Action,PC,Unrated,4.39,1579.0,91.0,8594.0,8.0,1586,49.3,Orta,49.3,Orta
+9743,Unturned,Action,PC,Teen,2.74,1120.0,83.0,8551.0,3.0,1123,24.28,Düşük,24.28,Düşük
+45969,Warhammer: Vermintide 2,Action,PC,Mature,3.61,778.0,82.0,8540.0,7.0,790,33.11,Orta,33.11,Orta
+13910,XCOM: Enemy Unknown,Strategy,PC,Unrated,4.2,1590.0,89.0,8525.0,13.0,1598,49.49,Orta,49.49,Orta
+13554,Fallout,RPG,PC,Unrated,4.2,1224.0,83.0,8506.0,1.0,1236,37.29,Orta,37.29,Orta
+23585,Far Cry 5,Action,PC,Mature,3.72,2177.0,80.0,8503.0,19.0,2219,46.33,Orta,46.33,Orta
+1416,Mafia II,Action,PC,Mature,4.25,2213.0,77.0,8488.0,13.0,2230,46.17,Orta,46.17,Orta
+18240,Brothers: A Tale of Two Sons,Action,PC,Teen,4.18,1641.0,90.0,8449.0,3.0,1655,43.67,Orta,43.67,Orta
+3687,Watch Dogs,Action,PC,Mature,3.6,2219.0,77.0,8431.0,16.0,2235,41.79,Orta,41.79,Orta
+5525,Brutal Legend,Action,PC,Unrated,3.64,1096.0,80.0,8422.0,5.0,1101,32.22,Orta,32.22,Orta
+2743,Heavy Rain,Action,PC,Mature,4.12,2478.0,80.0,8418.0,5.0,2493,42.49,Orta,42.49,Orta
+51329,Shadow of the Tomb Raider,Action,PC,Mature,3.91,1655.0,78.0,8409.0,10.0,1673,39.15,Orta,39.15,Orta
+1450,INSIDE,Action,PC,Teen,4.38,2587.0,87.0,8409.0,4.0,2624,48.46,Orta,48.46,Orta
+28179,SEGA Mega Drive and Genesis Classics,Action,PC,Teen,2.98,571.0,76.0,8402.0,2.0,572,19.76,Düşük,19.76,Düşük
+28201,Metro Exodus,Action,PC,Mature,4.16,1708.0,81.0,8392.0,6.0,1737,40.8,Orta,40.8,Orta
+50734,Sekiro: Shadows Die Twice,Action,PC,Mature,4.38,2119.0,90.0,8384.0,16.0,2157,55.57,Yüksek,55.57,Yüksek
+2361,Psychonauts,Action,PC,Teen,4.05,985.0,87.0,8327.0,4.0,1001,38.58,Orta,38.58,Orta
+9830,Brawlhalla,Action,PC,Everyone 10+,3.22,1112.0,83.0,8286.0,2.0,1120,27.78,Düşük,27.78,Düşük
+4280,Max Payne 3,Action,PC,Mature,4.26,1939.0,87.0,8286.0,10.0,1957,48.2,Orta,48.2,Orta
+2819,Firewatch,Adventure,PC,Mature,4.3,2509.0,81.0,8272.0,5.0,2548,44.63,Orta,44.63,Orta
+58616,Assassin's Creed Odyssey,Action,PC,Mature,3.98,2104.0,85.0,8252.0,31.0,2138,58.23,Yüksek,58.23,Yüksek
+3931,Saints Row IV,Action,PC,Mature,3.82,1642.0,86.0,8244.0,13.0,1654,44.07,Orta,44.07,Orta
+2093,No Man's Sky,Action,PC,Teen,3.71,1582.0,75.0,8235.0,15.0,1595,38.22,Orta,38.22,Orta
+28568,Assassin's Creed II,Action,PC,Mature,4.43,2966.0,89.0,8220.0,14.0,2992,57.51,Yüksek,57.51,Yüksek
+8488,Tom Clancy's Rainbow Six Siege,Action,PC,Teen,3.88,1518.0,75.0,8219.0,32.0,1534,50.17,Yüksek,50.17,Yüksek
+3556,Alien: Isolation,Action,PC,Mature,4.21,1467.0,81.0,8191.0,4.0,1480,38.72,Orta,38.72,Orta
+262382,Disco Elysium,Adventure,PC,Mature,4.37,1348.0,91.0,8148.0,6.0,1368,46.19,Orta,46.19,Orta
+4223,The Darkness II,Action,PC,Mature,3.71,1121.0,77.0,8140.0,3.0,1127,29.72,Düşük,29.72,Düşük
+326243,Elden Ring,Action,PC,Mature,4.39,1462.0,95.0,8128.0,6.0,1506,48.93,Orta,48.93,Orta
+28154,Cuphead,Action,PC,Unrated,4.37,2035.0,87.0,8112.0,6.0,2080,46.87,Orta,46.87,Orta
+58654,Hitman 2,Action,PC,Mature,4.05,1226.0,83.0,8085.0,5.0,1235,37.71,Orta,37.71,Orta
+3678,War Thunder,Action,PC,Teen,3.19,1042.0,81.0,8077.0,6.0,1049,28.32,Düşük,28.32,Düşük
+2235,Batman: Arkham Origins,Action,PC,Teen,3.95,1594.0,74.0,8069.0,12.0,1611,37.89,Orta,37.89,Orta
+4502,Darksiders,Action,PC,Mature,3.76,1215.0,83.0,8065.0,3.0,1219,33.62,Orta,33.62,Orta
+11052,Titan Quest Anniversary Edition,Action,PC,Unrated,3.78,797.0,83.0,8020.0,5.0,805,33.26,Orta,33.26,Orta
+28153,Assassin's Creed Origins,Action,PC,Mature,3.96,2106.0,81.0,8004.0,28.0,2138,53.68,Yüksek,53.68,Yüksek
+58777,DOOM Eternal,Action,PC,Mature,4.37,1430.0,86.0,8002.0,12.0,1464,47.42,Orta,47.42,Orta
+356714,Among Us,Action,PC,Everyone 10+,3.83,1343.0,82.0,7953.0,5.0,1376,35.36,Orta,35.36,Orta
+58751,Halo Infinite,Action,PC,Teen,3.64,729.0,84.0,7882.0,2.0,744,30.08,Orta,30.08,Orta
+10340,Crusader Kings II,Strategy,PC,Unrated,3.61,755.0,82.0,7879.0,3.0,762,29.47,Düşük,29.47,Düşük
+1010,Transistor,Action,PC,Teen,4.16,1473.0,83.0,7837.0,4.0,1488,38.76,Orta,38.76,Orta
+1682,The Wolf Among Us,Adventure,PC,Mature,4.39,2181.0,82.0,7833.0,9.0,2206,46.46,Orta,46.46,Orta
+998,Battlefield 1,Action,PC,Unrated,3.84,1978.0,88.0,7782.0,6.0,1993,41.59,Orta,41.59,Orta
+3876,Deus Ex: Human Revolution - Director's Cut,Action,PC,Mature,4.3,1381.0,91.0,7779.0,6.0,1392,45.08,Orta,45.08,Orta
+2792,Layers of Fear,Adventure,PC,Mature,3.54,1120.0,72.0,7760.0,3.0,1125,24.86,Düşük,24.86,Düşük
+3497,Far Cry 4,Shooter,PC,Mature,3.82,1934.0,80.0,7740.0,17.0,1964,43.82,Orta,43.82,Orta
+4003,GRID 2,Racing,PC,Everyone 10+,3.3,831.0,80.0,7726.0,3.0,832,25.54,Düşük,25.54,Düşük
+13461,Resident Evil 5,Action,PC,Mature,3.82,1642.0,86.0,7707.0,11.0,1658,41.97,Orta,41.97,Orta
+1256,XCOM 2,RPG,PC,Teen,4.1,1314.0,88.0,7692.0,15.0,1327,46.81,Orta,46.81,Orta
+17959,Ori and the Blind Forest: Definitive Edition,Adventure,PC,Everyone,4.42,1721.0,88.0,7660.0,6.0,1746,45.86,Orta,45.86,Orta
+18613,Counter-Strike: Condition Zero,Action,PC,Unrated,3.15,829.0,65.0,7644.0,1.0,832,14.82,Düşük,14.82,Düşük
+15002,The Stanley Parable,Adventure,PC,Unrated,4.37,2034.0,88.0,7634.0,3.0,2052,44.76,Orta,44.76,Orta
+4527,Call of Duty: Modern Warfare 2,Shooter,PC,Mature,4.27,2083.0,86.0,7597.0,22.0,2093,54.77,Yüksek,54.77,Yüksek
+12024,Insurgency,Action,PC,Unrated,3.42,969.0,74.0,7572.0,4.0,973,24.47,Düşük,24.47,Düşük
+22571,Black Desert Online,Action,PC,Teen,2.91,650.0,73.0,7532.0,4.0,654,17.71,Düşük,17.71,Düşük
+4599,Saints Row 2,Action,PC,Mature,3.57,897.0,78.0,7530.0,2.0,902,26.39,Düşük,26.39,Düşük
+13305,Assassin’s Creed III,Action,PC,Mature,3.75,2189.0,80.0,7493.0,22.0,2210,46.94,Orta,46.94,Orta
+28172,Kingdom Come: Deliverance,Action,PC,Mature,4.05,1465.0,71.0,7490.0,10.0,1488,34.56,Orta,34.56,Orta
+13268,Amnesia: A Machine for Pigs,Action,PC,Unrated,3.23,685.0,72.0,7490.0,2.0,693,19.06,Düşük,19.06,Düşük
+19590,Ori and the Blind Forest,Adventure,PC,Everyone,4.38,1532.0,88.0,7489.0,6.0,1540,44.43,Orta,44.43,Orta
+10297,Sid Meier’s Civilization VI,Strategy,PC,Everyone 10+,4.16,1430.0,88.0,7477.0,15.0,1447,47.52,Orta,47.52,Orta
+10560,Total War: SHOGUN 2,Strategy,PC,Unrated,3.61,630.0,90.0,7464.0,5.0,631,33.76,Orta,33.76,Orta
+4544,Red Dead Redemption,Action,PC,Mature,4.42,2210.0,95.0,7457.0,6.0,2231,51.24,Yüksek,51.24,Yüksek
+3853,Trine 2: Complete Story,Action,PC,Unrated,3.72,897.0,84.0,7451.0,4.0,899,32.1,Orta,32.1,Orta
+51325,The Last of Us Part II,Action,PlayStation,Mature,4.42,2005.0,93.0,7428.0,0.0,2099,45.55,Orta,45.55,Orta
+3168,SOMA,Action,PC,Mature,4.17,1443.0,84.0,7425.0,6.0,1461,39.85,Orta,39.85,Orta
+11435,Viscera Cleanup Detail: Shadow Warrior,Action,PC,Mature,2.59,578.0,83.0,7412.0,2.0,580,18.19,Düşük,18.19,Düşük
+10061,Watch Dogs 2,Action,PC,Mature,3.84,1774.0,79.0,7384.0,17.0,1792,42.25,Orta,42.25,Orta
+1090,This War of Mine,Adventure,PC,Mature,4.07,1248.0,83.0,7366.0,4.0,1255,36.22,Orta,36.22,Orta
+3766,Thief,Action,PC,Mature,3.26,1280.0,70.0,7358.0,5.0,1282,22.41,Düşük,22.41,Düşük
+4013,Call of Juarez: Gunslinger,Action,PC,Unrated,3.81,844.0,79.0,7353.0,5.0,854,30.58,Orta,30.58,Orta
+432,Grand Theft Auto III,Action,PC,Mature,4.16,1645.0,93.0,7330.0,1.0,1662,42.05,Orta,42.05,Orta
+28202,Wolfenstein II: The New Colossus,Action,PC,Mature,4.09,1774.0,86.0,7302.0,11.0,1797,44.44,Orta,44.44,Orta
+11726,Dead Cells,Action,PC,Teen,4.23,1740.0,88.0,7296.0,10.0,1766,46.05,Orta,46.05,Orta
+3990,The Last Of Us,Action,PlayStation,Mature,4.54,3360.0,95.0,7287.0,15.0,3402,62.49,Yüksek,62.49,Yüksek
+17352,Killing Floor,Action,PC,Unrated,3.45,856.0,72.0,7267.0,5.0,858,23.38,Düşük,23.38,Düşük
+1358,"Papers, Please",Simulation,PC,Mature,4.37,1777.0,85.0,7267.0,4.0,1792,42.16,Orta,42.16,Orta
+906,Call of Duty: Black Ops III,Action,PC,Mature,3.27,1504.0,73.0,7264.0,16.0,1517,31.74,Orta,31.74,Orta
+952,Shadowrun Returns,RPG,PC,Unrated,3.5,732.0,76.0,7262.0,4.0,735,24.82,Düşük,24.82,Düşük
+10073,Divinity: Original Sin 2,RPG,PC,Mature,4.38,1675.0,95.0,7245.0,22.0,1699,58.31,Yüksek,58.31,Yüksek
+10548,Darksiders Warmastered Edition,Action,PC,Mature,3.68,939.0,79.0,7195.0,5.0,947,29.48,Düşük,29.48,Düşük
+18272,Magicka,Action,PC,Unrated,3.79,1093.0,74.0,7191.0,5.0,1098,28.53,Düşük,28.53,Düşük
+43877,Quake Champions,Action,PC,Mature,3.26,1019.0,83.0,7184.0,2.0,1023,26.03,Düşük,26.03,Düşük
+3474,Lara Croft and the Temple of Osiris,Action,PC,Unrated,3.09,651.0,73.0,7184.0,2.0,652,17.62,Düşük,17.62,Düşük
+28492,Dead Island,Action,PC,Mature,3.48,1366.0,74.0,7142.0,7.0,1375,27.88,Düşük,27.88,Düşük
+59359,A Plague Tale: Innocence,Action,PC,Mature,4.15,1537.0,82.0,7141.0,7.0,1581,39.17,Orta,39.17,Orta
+10419,Subnautica,Adventure,PC,Everyone 10+,4.24,1479.0,83.0,7136.0,10.0,1505,42.18,Orta,42.18,Orta
+3757,South Park: The Stick of Truth,Adventure,PC,Mature,4.23,1722.0,84.0,7119.0,12.0,1738,44.84,Orta,44.84,Orta
+559,Fallout Shelter,RPG,PC,Teen,3.43,1539.0,63.0,7113.0,3.0,1545,19.78,Düşük,19.78,Düşük
+8146,Assassin's Creed Unity,Action,PC,Mature,3.63,1719.0,71.0,7052.0,14.0,1741,33.42,Orta,33.42,Orta
+56184,Resident Evil 4 (2005),Action,PC,Mature,4.4,1845.0,83.0,7047.0,5.0,1863,41.95,Orta,41.95,Orta
+19542,Half-Life: Blue Shift,Action,PC,Mature,3.73,764.0,71.0,7037.0,2.0,768,22.9,Düşük,22.9,Düşük
+3740,FEZ,Action,PC,Everyone,4.0,1174.0,91.0,7037.0,2.0,1181,37.69,Orta,37.69,Orta
+1244,Darkest Dungeon,RPG,PC,Teen,4.17,1357.0,84.0,7025.0,8.0,1366,40.11,Orta,40.11,Orta
+21265,Half-Life: Opposing Force,Action,PC,Mature,3.86,750.0,83.0,7021.0,3.0,754,31.0,Orta,31.0,Orta
+4954,Castle Crashers,Action,PC,Teen,3.89,1219.0,84.0,7012.0,4.0,1225,34.36,Orta,34.36,Orta
+15859,Star Wars: Knights of the Old Republic,Action,PC,Mature,4.35,1475.0,88.0,7010.0,2.0,1481,40.65,Orta,40.65,Orta
+2572,DiRT Rally,Simulation,PC,Unrated,3.69,674.0,86.0,7009.0,4.0,676,31.25,Orta,31.25,Orta
+14348,Dying Light: The Following - Enhanced Edition,Action,PC,Unrated,4.13,1109.0,87.0,7005.0,17.0,1116,45.88,Orta,45.88,Orta
+865,Call of Duty: Black Ops,Action,PC,Mature,4.05,1872.0,81.0,6982.0,9.0,1891,40.08,Orta,40.08,Orta
+9475,Don't Starve,Indie,PC,Teen,3.85,1130.0,79.0,6946.0,4.0,1136,30.87,Orta,30.87,Orta
+857,Halo: The Master Chief Collection,Action,PC,Unrated,4.25,1095.0,85.0,6944.0,7.0,1101,39.57,Orta,39.57,Orta
+4639,Dragon Age: Origins,RPG,PC,Mature,4.39,1978.0,91.0,6937.0,7.0,1987,47.69,Orta,47.69,Orta
+3015,Chivalry: Medieval Warfare,Action,PC,Unrated,3.41,840.0,79.0,6886.0,4.0,844,25.39,Düşük,25.39,Düşük
+19384,The Binding of Isaac,Action,PC,Unrated,3.91,1191.0,84.0,6883.0,5.0,1201,34.85,Orta,34.85,Orta
+18241,DmC: Devil May Cry,Action,PC,Mature,4.02,1564.0,85.0,6854.0,6.0,1575,38.55,Orta,38.55,Orta
+3486,Syberia,Adventure,PC,Teen,3.94,799.0,82.0,6844.0,3.0,807,31.15,Orta,31.15,Orta
+6617,Quantum Break,Action,PC,Mature,3.91,1349.0,66.0,6825.0,6.0,1369,26.56,Düşük,26.56,Düşük
+4550,Dead Space 2,Action,PC,Mature,4.38,1407.0,87.0,6786.0,5.0,1416,41.65,Orta,41.65,Orta
+28623,Batman: Arkham City,Action,PC,Teen,4.41,2174.0,94.0,6754.0,20.0,2198,58.11,Yüksek,58.11,Yüksek
+16112,Sleeping Dogs: Definitive Edition,Action,PC,Mature,4.15,1186.0,76.0,6730.0,6.0,1200,33.29,Orta,33.29,Orta
+3932,The Bureau: XCOM Declassified,Action,PC,Unrated,3.05,658.0,66.0,6718.0,3.0,659,13.48,Düşük,13.48,Düşük
+5562,Fallout 3,Shooter,PC,Mature,4.08,1950.0,91.0,6708.0,4.0,1966,42.39,Orta,42.39,Orta
+58755,Devil May Cry 5,Action,PC,Mature,4.25,1542.0,88.0,6705.0,9.0,1574,43.86,Orta,43.86,Orta
+3771,Rayman Legends,Platformer,PC,Everyone 10+,4.16,1563.0,89.0,6694.0,5.0,1578,41.1,Orta,41.1,Orta
+3028,Beyond: Two Souls,Action,PC,Mature,3.81,1784.0,73.0,6680.0,4.0,1801,29.61,Düşük,29.61,Düşük
+492,Yakuza 0,Action,PC,Mature,4.36,1143.0,85.0,6677.0,8.0,1166,41.01,Orta,41.01,Orta
+29338,Days Gone,Action,PC,Mature,3.97,1398.0,74.0,6637.0,10.0,1431,33.75,Orta,33.75,Orta
+17875,Guacamelee! Super Turbo Championship Edition,Action,PC,Everyone 10+,3.55,824.0,86.0,6626.0,3.0,830,29.3,Düşük,29.3,Düşük
+1169,Mafia III,Action,PC,Mature,3.14,1378.0,62.0,6582.0,9.0,1391,18.73,Düşük,18.73,Düşük
+3842,Battlefield 4,Shooter,PC,Mature,3.95,1614.0,81.0,6572.0,6.0,1629,35.53,Orta,35.53,Orta
+7819,SUPERHOT,Action,PC,Teen,4.19,1550.0,82.0,6568.0,4.0,1571,36.82,Orta,36.82,Orta
+42187,The Sims 4,Strategy,PC,Teen,3.67,1158.0,67.0,6565.0,4.0,1169,22.35,Düşük,22.35,Düşük
+42,What Remains of Edith Finch,Adventure,PC,Teen,4.38,2038.0,89.0,6558.0,3.0,2065,43.69,Orta,43.69,Orta
+17126,Torchlight II,Action,PC,Teen,3.84,1073.0,88.0,6552.0,10.0,1080,38.4,Orta,38.4,Orta
+817974,Wallpaper Engine,Casual,PC,Unrated,4.05,261.0,83.0,6548.0,13.0,262,36.29,Orta,36.29,Orta
+1959,Goat Simulator,Action,PC,Unrated,3.18,1199.0,62.0,6530.0,3.0,1205,14.54,Düşük,14.54,Düşük
+5703,Uncharted 3: Drake's Deception,Action,PlayStation,Teen,4.37,1952.0,92.0,6497.0,12.0,1969,50.35,Yüksek,50.35,Yüksek
+21924,Call of Duty: WWII,Action,PC,Mature,3.55,1184.0,77.0,6493.0,6.0,1202,27.72,Düşük,27.72,Düşük
+28199,Ori and the Will of the Wisps,Action,PC,Everyone,4.41,1312.0,91.0,6471.0,11.0,1339,46.89,Orta,46.89,Orta
+3408,Hotline Miami 2: Wrong Number,Action,PC,Mature,4.29,1335.0,72.0,6458.0,7.0,1346,33.33,Orta,33.33,Orta
+19365,Homefront,Shooter,PC,Mature,2.96,819.0,70.0,6454.0,2.0,827,14.34,Düşük,14.34,Düşük
+3892,Sniper Elite V2,Action,PC,Mature,3.4,851.0,66.0,6447.0,4.0,855,17.8,Düşük,17.8,Düşük
+2623,Resident Evil 6,Action,PC,Mature,3.43,1281.0,67.0,6446.0,8.0,1296,22.89,Düşük,22.89,Düşük
+5159,Resident Evil 2 (1998),Action,PC,Mature,4.33,931.0,90.0,6430.0,13.0,934,45.22,Orta,45.22,Orta
+1774,Grim Fandango Remastered,Adventure,PC,Teen,4.0,907.0,84.0,6417.0,5.0,912,33.8,Orta,33.8,Orta
+2873,The Witness,Adventure,PC,Unrated,4.01,1285.0,87.0,6400.0,4.0,1299,36.38,Orta,36.38,Orta
+28559,Dragon Age: Inquisition,Action,PC,Mature,3.8,1562.0,86.0,6399.0,4.0,1581,35.0,Orta,35.0,Orta
+9609,Euro Truck Simulator 2,Simulation,PC,Everyone,4.12,915.0,79.0,6393.0,12.0,921,36.68,Orta,36.68,Orta
+2733,Broforce,Action,PC,Unrated,4.02,1317.0,83.0,6390.0,6.0,1331,35.74,Orta,35.74,Orta
+624,FTL: Faster Than Light,Strategy,PC,Everyone 10+,4.25,964.0,84.0,6389.0,6.0,970,36.99,Orta,36.99,Orta
+274762,The Outer Worlds,Action,PC,Unrated,3.85,1491.0,80.0,6388.0,8.0,1530,34.5,Orta,34.5,Orta
+11276,Call of Duty: Modern Warfare 3,Action,PC,Mature,3.79,1652.0,85.0,6378.0,8.0,1660,37.21,Orta,37.21,Orta
+9600,The Forest,Action,PC,Mature,3.74,936.0,83.0,6378.0,8.0,948,32.73,Orta,32.73,Orta
+22511,The Legend of Zelda: Breath of the Wild,Action,Nintendo,Everyone 10+,4.47,3190.0,97.0,6370.0,6.0,3255,55.09,Yüksek,55.09,Yüksek
+16209,Kingdom: Classic,Strategy,PC,Unrated,3.39,579.0,74.0,6338.0,4.0,579,20.62,Düşük,20.62,Düşük
+11686,POSTAL 2,Action,PC,Adults Only,3.91,1078.0,59.0,6337.0,4.0,1086,19.74,Düşük,19.74,Düşük
+58753,Forza Horizon 4,Racing,PC,Everyone,4.37,1652.0,90.0,6329.0,13.0,1668,48.42,Orta,48.42,Orta
+15834,The Walking Dead: Season 2,Action,PC,Mature,4.06,1477.0,80.0,6292.0,10.0,1486,37.54,Orta,37.54,Orta
+23322,Surviving Mars,Strategy,PC,Everyone 10+,3.47,471.0,75.0,6284.0,4.0,472,21.38,Düşük,21.38,Düşük
+58617,Borderlands 3,Action,PC,Mature,3.87,975.0,83.0,6250.0,11.0,993,35.8,Orta,35.8,Orta
+3371,Dark Souls II: Scholar of the First Sin,Action,PC,Mature,4.14,1223.0,79.0,6214.0,25.0,1229,45.98,Orta,45.98,Orta
+22781,Syberia 2,Adventure,PC,Teen,3.89,577.0,80.0,6208.0,5.0,579,28.95,Düşük,28.95,Düşük
+4440,Deus Ex: Human Revolution,Action,PC,Mature,4.37,1553.0,89.0,6199.0,17.0,1567,49.78,Orta,49.78,Orta
+16113,Sleeping Dogs,Action,PC,Mature,4.13,1331.0,81.0,6198.0,14.0,1342,40.49,Orta,40.49,Orta
+18336,Alan Wake's American Nightmare,Action,PC,Unrated,3.41,828.0,73.0,6181.0,3.0,833,20.44,Düşük,20.44,Düşük
+4101,Bayonetta,Action,PC,Mature,4.3,1160.0,90.0,6178.0,5.0,1171,40.48,Orta,40.48,Orta
+13194,To the Moon,Action,PC,Everyone,4.29,1143.0,81.0,6173.0,4.0,1154,34.94,Orta,34.94,Orta
+22121,Celeste,Indie,PC,Everyone 10+,4.37,1700.0,91.0,6172.0,6.0,1748,44.52,Orta,44.52,Orta
+16343,A Story About My Uncle,Adventure,PC,Everyone 10+,3.15,644.0,73.0,6162.0,3.0,650,17.17,Düşük,17.17,Düşük
+14446,Call of Duty: Black Ops II,Action,PC,Mature,3.96,1435.0,74.0,6154.0,5.0,1447,29.92,Düşük,29.92,Düşük
+752,SMITE,Action,PC,Unrated,3.05,802.0,83.0,6145.0,3.0,802,22.11,Düşük,22.11,Düşük
+45821,Frostpunk,Strategy,PC,Mature,4.19,1066.0,85.0,6141.0,6.0,1085,36.98,Orta,36.98,Orta
+20406,Team Fortress Classic,Action,PC,Unrated,2.92,387.0,83.0,6135.0,1.0,389,17.89,Düşük,17.89,Düşük
+306124,Borderlands Game of the Year Enhanced,Action,PC,Mature,3.8,1037.0,78.0,6127.0,3.0,1046,27.56,Düşük,27.56,Düşük
+2728,Tom Clancy’s The Division,Action,PC,Mature,3.7,1345.0,80.0,6120.0,27.0,1349,43.92,Orta,43.92,Orta
+15426,Black Mesa,Action,PC,Unrated,4.35,1079.0,86.0,6108.0,6.0,1095,39.03,Orta,39.03,Orta
+12756,"Warhammer 40,000: Space Marine",Action,PC,Adults Only,3.47,752.0,74.0,6101.0,5.0,755,22.35,Düşük,22.35,Düşük
+4123,Batman: Arkham Asylum,Action,PC,Teen,4.4,2335.0,91.0,6094.0,13.0,2362,51.68,Yüksek,51.68,Yüksek
+4094,Metal Gear Rising: Revengeance,Action,PC,Mature,4.25,1254.0,83.0,6092.0,6.0,1268,37.2,Orta,37.2,Orta
+4573,PAYDAY The Heist,Action,PC,Adults Only,3.35,782.0,76.0,6081.0,4.0,789,21.72,Düşük,21.72,Düşük
+2553,Ratchet & Clank,Action,PlayStation,Everyone 10+,4.05,1461.0,85.0,6064.0,18.0,1480,44.65,Orta,44.65,Orta
+58550,Ghost of Tsushima,Action,PC,Mature,4.41,1145.0,83.0,6057.0,0.0,1180,34.46,Orta,34.46,Orta
+42895,Assassin's Creed Syndicate,Action,PC,Mature,3.66,1516.0,74.0,6052.0,22.0,1537,37.86,Orta,37.86,Orta
+3631,inFAMOUS Second Son,Action,PlayStation,Teen,3.91,1645.0,80.0,6027.0,0.0,1659,30.14,Orta,30.14,Orta
+14512,Age of Wonders III,RPG,PC,Unrated,2.92,447.0,80.0,6026.0,4.0,448,18.26,Düşük,18.26,Düşük
+9966,Dead by Daylight,Action,PC,Mature,3.5,990.0,72.0,6020.0,10.0,1004,25.56,Düşük,25.56,Düşük
+30899,Mafia: The City of Lost Heaven,Action,PC,Mature,4.36,1313.0,88.0,6004.0,2.0,1325,38.48,Orta,38.48,Orta
+18614,Half-Life: Source,Action,PC,Mature,3.71,557.0,83.0,5996.0,1.0,561,25.9,Düşük,25.9,Düşük
+2597,LEGO The Lord of the Rings,Action,PC,Everyone 10+,3.56,622.0,80.0,5996.0,2.0,627,23.78,Düşük,23.78,Düşük
+2115,Overcooked,Simulation,PC,Everyone,4.07,1355.0,81.0,5967.0,4.0,1365,33.4,Orta,33.4,Orta
+17857,S.T.A.L.K.E.R.: Shadow of Chernobyl,Action,PC,Adults Only,4.27,1361.0,82.0,5965.0,3.0,1374,35.23,Orta,35.23,Orta
+9671,Rust,Action,PC,Mature,3.37,864.0,66.0,5950.0,15.0,870,23.66,Düşük,23.66,Düşük
+50778,A Way Out,Action,PC,Mature,4.12,1623.0,78.0,5937.0,6.0,1666,34.6,Orta,34.6,Orta
+28152,STAR WARS Battlefront II,Action,PC,Teen,3.58,1366.0,74.0,5931.0,4.0,1380,25.04,Düşük,25.04,Düşük
+13247,Human: Fall Flat,Action,PC,Everyone,3.83,1031.0,70.0,5913.0,5.0,1042,24.52,Düşük,24.52,Düşük
+13913,Deus Ex: Game of the Year Edition,Action,PC,Mature,4.12,576.0,90.0,5907.0,1.0,576,33.42,Orta,33.42,Orta
+46956,Doki Doki Literature Club!,Adventure,PC,Unrated,4.06,1297.0,78.0,5888.0,3.0,1328,30.73,Orta,30.73,Orta
+3209,Until Dawn,Action,PC,Mature,4.1,1751.0,79.0,5884.0,14.0,1777,40.38,Orta,40.38,Orta
+2518,Max Payne,Action,PC,Mature,4.45,2058.0,89.0,5876.0,2.0,2079,42.74,Orta,42.74,Orta
+19569,Hitman: Blood Money,Action,PC,Mature,4.31,1042.0,82.0,5865.0,2.0,1047,33.51,Orta,33.51,Orta
+14962,Dark Souls: Prepare To Die Edition,Action,PC,Mature,4.37,1265.0,85.0,5850.0,14.0,1271,44.05,Orta,44.05,Orta
+11312,The Long Dark,Action,PC,Teen,3.91,881.0,76.0,5848.0,5.0,890,27.72,Düşük,27.72,Düşük
+750,FINAL FANTASY XV,RPG,PC,Teen,3.87,1424.0,82.0,5835.0,5.0,1442,32.72,Orta,32.72,Orta
+18183,Company of Heroes,Strategy,PC,Unrated,3.68,564.0,93.0,5818.0,7.0,570,34.37,Orta,34.37,Orta
+5193,Oddworld: Abe's Oddysee,Action,PC,Teen,3.55,561.0,85.0,5763.0,3.0,563,26.32,Düşük,26.32,Düşük
+250,The Binding of Isaac: Rebirth,Action,PC,Mature,4.32,1167.0,86.0,5760.0,31.0,1177,54.18,Yüksek,54.18,Yüksek
+14016,Tropico 4,Strategy,PC,Teen,3.51,511.0,78.0,5754.0,4.0,511,22.66,Düşük,22.66,Düşük
+670682,Counter-Strike: Condition Zero Deleted Scenes,Shooter,PC,Mature,2.88,178.0,83.0,5744.0,1.0,180,16.03,Düşük,16.03,Düşük
+274480,Mortal Kombat 11,Action,PC,Mature,3.97,1144.0,82.0,5738.0,9.0,1160,34.86,Orta,34.86,Orta

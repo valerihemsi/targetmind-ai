@@ -1,0 +1,1615 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TargetMind AI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,600;0,9..144,700;1,9..144,400&family=DM+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #f7f6f3;
+      --bg1:      #ffffff;
+      --bg2:      #f0eeea;
+      --border:   #e2dfd8;
+      --indigo:   #4338ca;
+      --indigo-dim: rgba(67,56,202,.08);
+      --red:      #dc2626;
+      --green:    #059669;
+      --yellow:   #d97706;
+      --text:     #1c1917;
+      --muted:    #78716c;
+      --faint:    #d6d3cd;
+      --sans:     'DM Sans', system-ui, sans-serif;
+      --serif:    'Fraunces', Georgia, serif;
+      --mono:     'IBM Plex Mono', monospace;
+    }
+
+    html { scroll-behavior: smooth; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      font-size: 15px;
+      line-height: 1.6;
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── Subtle dot grid ── */
+    body::before {
+      content: '';
+      position: fixed; inset: 0; z-index: 0;
+      background-image: radial-gradient(circle, #c8c4bc 1px, transparent 1px);
+      background-size: 32px 32px;
+      pointer-events: none;
+      opacity: .45;
+    }
+
+    .wrap { position: relative; z-index: 1; max-width: 900px; margin: 0 auto; padding: 0 24px; }
+
+    /* ── Header ── */
+    header {
+      padding: 28px 0 24px;
+      display: flex; align-items: center; justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 0;
+    }
+
+    .logo {
+      font-family: var(--mono); font-size: .68rem;
+      letter-spacing: .15em; text-transform: uppercase;
+      color: var(--indigo); display: flex; align-items: center; gap: 10px;
+    }
+
+    .logo-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--indigo);
+      animation: pulse 2s ease infinite;
+    }
+
+    @keyframes pulse {
+      0%,100% { opacity: 1; } 50% { opacity: .4; }
+    }
+
+    .version {
+      font-family: var(--mono); font-size: .62rem;
+      color: var(--faint); letter-spacing: .08em;
+    }
+
+    /* ══════════════════════════════
+       LANDING
+    ══════════════════════════════ */
+    #landing {
+      padding: 80px 0 60px;
+      text-align: center;
+    }
+
+    .landing-tag {
+      display: inline-block;
+      font-family: var(--mono); font-size: .62rem;
+      letter-spacing: .15em; text-transform: uppercase;
+      color: var(--indigo); border: 1px solid rgba(67,56,202,.25);
+      border-radius: 20px; padding: 5px 14px; margin-bottom: 32px;
+      background: var(--indigo-dim);
+    }
+
+    #landing h1 {
+      font-family: var(--serif);
+      font-size: clamp(2.2rem, 5vw, 3.8rem);
+      font-weight: 700; line-height: 1.1;
+      letter-spacing: -.02em; margin-bottom: 20px;
+      color: var(--text);
+    }
+
+    #landing h1 em {
+      font-style: italic; color: var(--indigo);
+    }
+
+    #landing p {
+      color: var(--muted); font-size: 1.05rem;
+      max-width: 520px; margin: 0 auto 48px; line-height: 1.7;
+      font-weight: 300;
+    }
+
+    /* Info cards */
+    .info-cards {
+      display: grid; grid-template-columns: repeat(3, 1fr);
+      gap: 12px; margin-bottom: 48px; text-align: left;
+    }
+
+    @media (max-width: 600px) { .info-cards { grid-template-columns: 1fr; } }
+
+    .info-card {
+      background: var(--bg1); border: 1px solid var(--border);
+      border-radius: 10px; padding: 18px;
+    }
+
+    .info-card-num {
+      font-family: var(--mono); font-size: .6rem;
+      color: var(--muted); letter-spacing: .1em; margin-bottom: 8px;
+    }
+
+    .info-card-title {
+      font-size: .9rem; font-weight: 600;
+      color: #e2e8f0; margin-bottom: 6px;
+    }
+
+    .info-card-text { font-size: .78rem; color: var(--muted); line-height: 1.5; }
+
+    /* Start button */
+    #start-btn {
+      background: var(--indigo); color: #fff;
+      border: none; border-radius: 10px;
+      padding: 16px 40px; font-family: var(--sans);
+      font-size: 1rem; font-weight: 600; cursor: pointer;
+      transition: transform .15s, box-shadow .2s;
+      box-shadow: 0 4px 20px rgba(67,56,202,.25);
+    }
+
+    #start-btn:hover { transform: scale(1.03); box-shadow: 0 6px 28px rgba(67,56,202,.4); }
+    #start-btn:disabled { opacity: .4; cursor: not-allowed; transform: none; }
+
+    .start-note {
+      margin-top: 14px; font-family: var(--mono);
+      font-size: .62rem; color: var(--muted); letter-spacing: .05em;
+    }
+
+    /* ── Veri seçim kutuları ── */
+    .data-options {
+      display: flex; align-items: stretch; gap: 0;
+      max-width: 680px; margin: 0 auto;
+      border: 1px solid var(--border); border-radius: 14px;
+      overflow: hidden; background: var(--bg1);
+      box-shadow: 0 2px 16px rgba(0,0,0,.06);
+    }
+
+    .data-card {
+      flex: 1; padding: 28px 26px;
+      display: flex; flex-direction: column; gap: 16px;
+    }
+
+    .data-card:first-child { border-right: 1px solid var(--border); }
+
+    .data-card-head {
+      display: flex; align-items: center; gap: 12px;
+    }
+
+    .data-card-icon {
+      width: 36px; height: 36px; border-radius: 8px;
+      background: var(--indigo-dim); color: var(--indigo);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1rem; flex-shrink: 0; font-weight: 700;
+    }
+
+    .data-card-title { font-size: .92rem; font-weight: 600; color: var(--text); }
+    .data-card-sub   { font-size: .72rem; color: var(--muted); margin-top: 2px; }
+
+    /* Drop zone */
+    .drop-zone {
+      border: 1.5px dashed var(--border); border-radius: 10px;
+      padding: 22px 16px; text-align: center; cursor: pointer;
+      transition: border-color .2s, background .2s;
+      background: var(--bg);
+    }
+
+    .drop-zone:hover, .drop-zone.over {
+      border-color: var(--indigo); background: var(--indigo-dim);
+    }
+
+    .drop-icon { font-size: 1.6rem; margin-bottom: 8px; }
+    .drop-text { font-size: .82rem; font-weight: 500; color: var(--text); }
+    .drop-hint { font-family: var(--mono); font-size: .62rem; color: var(--muted); margin-top: 4px; }
+
+    /* Upload status */
+    .upload-status {
+      padding: 10px 12px; border-radius: 8px;
+      font-family: var(--mono); font-size: .72rem; line-height: 1.5;
+    }
+
+    .upload-status.ok    { background: rgba(5,150,105,.08); color: #059669; border: 1px solid rgba(5,150,105,.2); }
+    .upload-status.error { background: rgba(220,38,38,.08);  color: #dc2626; border: 1px solid rgba(220,38,38,.2); }
+
+    /* Template row */
+    .template-row {
+      display: flex; align-items: center; gap: 10px;
+    }
+
+    .template-link {
+      font-family: var(--mono); font-size: .65rem;
+      color: var(--indigo); text-decoration: none; letter-spacing: .03em;
+    }
+
+    .template-link:hover { text-decoration: underline; }
+    .template-hint { font-family: var(--mono); font-size: .6rem; color: var(--muted); }
+
+    /* Demo info */
+    .demo-info {
+      display: flex; gap: 12px;
+    }
+
+    .demo-stat {
+      flex: 1; background: var(--bg); border: 1px solid var(--border);
+      border-radius: 8px; padding: 10px; text-align: center;
+      font-family: var(--mono); font-size: .62rem; color: var(--muted); letter-spacing: .04em;
+    }
+
+    .demo-stat span {
+      display: block; font-size: 1.3rem; font-weight: 700;
+      color: var(--text); font-family: var(--sans); letter-spacing: -.02em;
+      margin-bottom: 2px;
+    }
+
+    .demo-desc {
+      font-size: .78rem; color: var(--muted); line-height: 1.55;
+    }
+
+    /* Shared button */
+    .data-btn {
+      background: var(--indigo); color: #fff;
+      border: none; border-radius: 8px;
+      padding: 12px 20px; font-family: var(--sans);
+      font-size: .88rem; font-weight: 600; cursor: pointer;
+      transition: opacity .2s, transform .15s;
+      margin-top: auto;
+    }
+
+    .data-btn:hover:not(:disabled) { opacity: .88; transform: translateY(-1px); }
+    .data-btn:disabled { opacity: .35; cursor: not-allowed; transform: none; }
+
+    /* Or divider */
+    .data-or {
+      display: flex; align-items: center; justify-content: center;
+      padding: 0 4px; font-family: var(--mono); font-size: .65rem;
+      color: var(--muted); letter-spacing: .06em;
+      writing-mode: vertical-rl; background: var(--bg2);
+      border-left: 1px solid var(--border); border-right: 1px solid var(--border);
+    }
+
+    @media (max-width: 620px) {
+      .data-options { flex-direction: column; }
+      .data-card:first-child { border-right: none; border-bottom: 1px solid var(--border); }
+      .data-or { writing-mode: horizontal-tb; padding: 8px; border: none; }
+    }
+
+    /* ══════════════════════════════
+       PIPELINE
+    ══════════════════════════════ */
+    #pipeline { display: none; padding: 48px 0; }
+
+    .pipeline-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 32px;
+    }
+
+    .pipeline-title {
+      font-size: 1.1rem; font-weight: 600; color: #e2e8f0;
+    }
+
+    .pipeline-counter {
+      font-family: var(--mono); font-size: .72rem; color: var(--muted);
+    }
+
+    /* Progress bar */
+    .progress-track {
+      height: 2px; background: var(--faint); border-radius: 1px;
+      margin-bottom: 40px; overflow: hidden;
+    }
+
+    #progress-fill {
+      height: 100%; width: 0%; border-radius: 1px;
+      background: linear-gradient(90deg, var(--indigo), #7c3aed);
+      transition: width .6s cubic-bezier(.4,0,.2,1);
+    }
+
+    /* Timeline */
+    .timeline { display: flex; flex-direction: column; gap: 0; }
+
+    .step {
+      display: flex; align-items: flex-start; gap: 20px;
+      padding: 20px 0;
+      border-bottom: 1px solid var(--border);
+      opacity: .35;
+      transition: opacity .3s;
+    }
+
+    .step:last-child { border-bottom: none; }
+    .step.active, .step.done { opacity: 1; }
+
+    /* Step icon column */
+    .step-icon-col {
+      display: flex; flex-direction: column;
+      align-items: center; gap: 0; flex-shrink: 0;
+      padding-top: 2px;
+    }
+
+    .step-icon {
+      width: 32px; height: 32px; border-radius: 50%;
+      border: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      font-family: var(--mono); font-size: .65rem;
+      color: var(--muted); background: var(--bg1);
+      transition: all .3s;
+    }
+
+    .step.active .step-icon {
+      border-color: var(--indigo);
+      box-shadow: 0 0 12px rgba(67,56,202,.15);
+      background: var(--indigo-dim);
+      color: var(--indigo);
+    }
+
+    .step.done .step-icon {
+      border-color: var(--green);
+      background: rgba(16,185,129,.1);
+      color: var(--green);
+    }
+
+    .step.warn .step-icon {
+      border-color: var(--yellow);
+      background: rgba(245,158,11,.1);
+      color: var(--yellow);
+    }
+
+    /* Spinning loader */
+    .spin-ring {
+      width: 16px; height: 16px; border-radius: 50%;
+      border: 2px solid rgba(67,56,202,.15);
+      border-top-color: var(--indigo);
+      animation: spin .7s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Step content */
+    .step-body { flex: 1; }
+
+    .step-name {
+      font-size: .92rem; font-weight: 600; color: #e2e8f0;
+      margin-bottom: 2px;
+    }
+
+    .step-desc { font-size: .78rem; color: var(--muted); margin-bottom: 6px; }
+
+    .step-summary {
+      display: none; font-family: var(--mono); font-size: .7rem;
+      padding: 6px 10px; border-radius: 6px; margin-top: 8px;
+      letter-spacing: .02em;
+    }
+
+    .step-summary.ok     { background: rgba(16,185,129,.08); color: #6ee7b7; border: 1px solid rgba(16,185,129,.15); }
+    .step-summary.error  { background: rgba(239,68,68,.08);  color: #fca5a5; border: 1px solid rgba(239,68,68,.15); }
+    .step-summary.warn   { background: rgba(245,158,11,.08); color: #fcd34d; border: 1px solid rgba(245,158,11,.15); }
+
+    .step-num {
+      font-family: var(--mono); font-size: .6rem; color: var(--faint);
+      margin-top: 2px; text-align: center; letter-spacing: .05em;
+    }
+
+    /* ══════════════════════════════
+       DASHBOARD
+    ══════════════════════════════ */
+    #dashboard { display: none; padding: 48px 0 80px; }
+
+    .dash-section {
+      margin-bottom: 40px;
+    }
+
+    .dash-label {
+      font-family: var(--mono); font-size: .65rem;
+      letter-spacing: .12em; text-transform: uppercase;
+      color: var(--muted); margin-bottom: 16px;
+      display: flex; align-items: center; gap: 8px;
+    }
+
+    .dash-label::after {
+      content: ''; flex: 1; height: 1px; background: var(--border);
+    }
+
+    /* Funnel */
+    .funnel {
+      display: flex; align-items: center; justify-content: center;
+      gap: 0; flex-wrap: wrap;
+    }
+
+    .funnel-item {
+      text-align: center; padding: 24px 32px;
+      background: var(--bg1); border: 1px solid var(--border);
+      border-radius: 10px; min-width: 160px;
+    }
+
+    .funnel-num {
+      font-size: 3rem; font-weight: 700; line-height: 1;
+      color: #e2e8f0; letter-spacing: -.04em;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .funnel-item:first-child .funnel-num { color: var(--muted); }
+    .funnel-item:last-child  .funnel-num { color: var(--indigo); }
+
+    .funnel-lbl {
+      font-family: var(--mono); font-size: .65rem;
+      letter-spacing: .08em; text-transform: uppercase;
+      color: var(--muted); margin-top: 8px;
+    }
+
+    .funnel-pct {
+      font-family: var(--mono); font-size: .7rem;
+      color: var(--red); margin-top: 4px;
+    }
+
+    .funnel-arr {
+      font-size: 1.5rem; color: var(--faint);
+      padding: 0 12px; flex-shrink: 0;
+    }
+
+    /* Bias gauges */
+    .bias-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+    }
+
+    @media (max-width: 600px) { .bias-grid { grid-template-columns: 1fr; } }
+
+    .bias-card {
+      background: var(--bg1); border: 1px solid var(--border);
+      border-radius: 10px; padding: 18px 20px;
+    }
+
+    .bias-card-head {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .bias-card-name {
+      font-size: .8rem; font-weight: 600; color: #e2e8f0;
+    }
+
+    .bias-badge {
+      font-family: var(--mono); font-size: .62rem;
+      padding: 3px 8px; border-radius: 12px; font-weight: 700;
+    }
+
+    .bias-badge.green  { background: rgba(16,185,129,.15); color: #6ee7b7; }
+    .bias-badge.yellow { background: rgba(245,158,11,.15); color: #fcd34d; }
+    .bias-badge.red    { background: rgba(239,68,68,.15);  color: #fca5a5; }
+
+    .bias-val {
+      font-size: 1.6rem; font-weight: 700; line-height: 1;
+      margin-bottom: 6px;
+    }
+
+    .bias-val.green  { color: var(--green); }
+    .bias-val.yellow { color: var(--yellow); }
+    .bias-val.red    { color: var(--red); }
+
+    .bias-sub {
+      font-size: .72rem; color: var(--muted); line-height: 1.4;
+    }
+
+    .bias-track {
+      height: 4px; background: var(--faint);
+      border-radius: 2px; margin-top: 12px; overflow: hidden;
+    }
+
+    .bias-fill {
+      height: 100%; border-radius: 2px;
+      transition: width 1s cubic-bezier(.4,0,.2,1);
+    }
+
+    .bias-fill.green  { background: var(--green); }
+    .bias-fill.yellow { background: var(--yellow); }
+    .bias-fill.red    { background: var(--red); }
+
+    /* Özet stats */
+    .stats-row {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;
+    }
+
+    @media (max-width: 600px) { .stats-row { grid-template-columns: repeat(2, 1fr); } }
+
+    .stat-card {
+      background: var(--bg1); border: 1px solid var(--border);
+      border-radius: 10px; padding: 16px 18px;
+    }
+
+    .stat-val {
+      font-size: 1.5rem; font-weight: 700; color: #e2e8f0; line-height: 1;
+    }
+
+    .stat-lbl {
+      font-family: var(--mono); font-size: .6rem;
+      letter-spacing: .08em; text-transform: uppercase;
+      color: var(--muted); margin-top: 6px;
+    }
+
+    /* Table */
+    .table-wrap { overflow-x: auto; border-radius: 10px; border: 1px solid var(--border); }
+
+    table {
+      width: 100%; border-collapse: collapse;
+      font-size: .8rem;
+    }
+
+    thead tr {
+      background: var(--bg2); border-bottom: 1px solid var(--border);
+    }
+
+    th {
+      padding: 12px 14px; text-align: left;
+      font-family: var(--mono); font-size: .62rem;
+      letter-spacing: .08em; text-transform: uppercase;
+      color: var(--muted); cursor: pointer;
+      user-select: none; white-space: nowrap;
+    }
+
+    th:hover { color: var(--text); }
+    th.sort-asc::after  { content: ' ↑'; color: var(--cyan); }
+    th.sort-desc::after { content: ' ↓'; color: var(--cyan); }
+
+    tbody tr {
+      border-bottom: 1px solid var(--border);
+      transition: background .15s;
+      cursor: pointer;
+    }
+
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: rgba(255,255,255,.025); }
+
+    td { padding: 11px 14px; color: var(--text); white-space: nowrap; }
+
+    .score-bar {
+      display: flex; align-items: center; gap: 8px;
+    }
+
+    .score-track {
+      width: 60px; height: 4px; background: var(--faint);
+      border-radius: 2px; overflow: hidden; flex-shrink: 0;
+    }
+
+    .score-fill {
+      height: 100%; background: var(--indigo); border-radius: 2px;
+    }
+
+    .tag {
+      display: inline-block; padding: 2px 7px; border-radius: 4px;
+      font-family: var(--mono); font-size: .6rem;
+      letter-spacing: .04em; text-transform: uppercase;
+    }
+
+    .tag-gelir-yuksek { background: rgba(16,185,129,.12); color: #6ee7b7; }
+    .tag-gelir-orta   { background: rgba(245,158,11,.12); color: #fcd34d; }
+    .tag-gelir-dusuk  { background: rgba(239,68,68,.12);  color: #fca5a5; }
+
+    /* Download btn */
+    #download-btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: none; border: 1px solid var(--border);
+      border-radius: 8px; padding: 10px 20px;
+      color: var(--muted); font-family: var(--mono);
+      font-size: .72rem; letter-spacing: .08em;
+      cursor: pointer; transition: border-color .2s, color .2s;
+      text-transform: uppercase;
+    }
+
+    #download-btn:hover { border-color: var(--indigo); color: var(--indigo); }
+
+    /* Error state */
+    .error-msg {
+      background: rgba(239,68,68,.08); border: 1px solid rgba(239,68,68,.2);
+      border-radius: 10px; padding: 20px 24px;
+      color: #fca5a5; font-family: var(--mono); font-size: .82rem;
+      margin: 24px 0;
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--faint); border-radius: 2px; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ── Header ── -->
+  <header>
+    <div class="logo">
+      <div class="logo-dot"></div>
+      TargetMind AI
+    </div>
+    <div class="version">v1.0 · Demo</div>
+  </header>
+
+  <!-- ════════════════════════════
+       LANDING
+  ════════════════════════════ -->
+  <section id="landing">
+    <div class="landing-tag">7 Ajanlı Sistem · Bias Tespiti</div>
+
+    <h1>TargetMind <em>AI</em></h1>
+
+    <p>
+      Hedef kitleyi akıllı şekilde analiz eden ve şirketlerin daha nokta atış müşterilere ulaşmasını sağlayan sistem.
+    </p>
+
+    <div class="info-cards">
+      <div class="info-card">
+        <div class="info-card-num">01</div>
+        <div class="info-card-title">Veri Kalitesi</div>
+        <div class="info-card-text">Eksik değerler, aykırı değerler ve format tutarsızlıkları tespit edilip temizlenir. Temizleme kararlarının kendisi de denetlenir.</div>
+      </div>
+      <div class="info-card">
+        <div class="info-card-num">02</div>
+        <div class="info-card-title">Bias Tespiti</div>
+        <div class="info-card-text">Gelir, cinsiyet ve yaş bazında sistematik dışlama var mı? Gerçek fark mı, yapay bias mı? Her bulgu sayısal olarak ölçülür.</div>
+      </div>
+      <div class="info-card">
+        <div class="info-card-num">03</div>
+        <div class="info-card-title">Gelecek Potansiyel</div>
+        <div class="info-card-text">Şu an az harcayan ama çok oynayan kim? Bağlılık, sadakat ve ikna edilebilirlik ile gelecekte harcama yapacak müşteriler tespit edilir.</div>
+      </div>
+    </div>
+
+    <!-- Veri seçim kutuları -->
+    <div class="data-options">
+
+      <!-- Kendi verisi -->
+      <div class="data-card" id="upload-card">
+        <div class="data-card-head">
+          <div class="data-card-icon">↑</div>
+          <div>
+            <div class="data-card-title">Kendi Verinizi Yükleyin</div>
+            <div class="data-card-sub">CSV formatında müşteri datası</div>
+          </div>
+        </div>
+
+        <div class="drop-zone" id="drop-zone"
+             ondragover="onDragOver(event)"
+             ondragleave="onDragLeave(event)"
+             ondrop="onDrop(event)"
+             onclick="document.getElementById('file-input').click()">
+          <div class="drop-icon">📂</div>
+          <div class="drop-text">Dosyayı sürükleyin veya tıklayın</div>
+          <div class="drop-hint">.csv · en az 10 satır</div>
+        </div>
+
+        <input type="file" id="file-input" accept=".csv" style="display:none"
+               onchange="onFileSelect(this.files[0])">
+
+        <div id="upload-status" class="upload-status" style="display:none"></div>
+
+        <!-- Kolon Eşleme (upload sonrası görünür) -->
+        <div id="col-mapping" style="display:none;margin-top:16px">
+          <p style="font-family:var(--mono);font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:12px">
+            Kolon Rolleri
+          </p>
+
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <!-- ID kolonu -->
+            <div style="display:flex;align-items:center;gap:10px">
+              <span style="font-family:var(--mono);font-size:.7rem;color:var(--muted);width:110px;shrink:0">Kimlik (ID)</span>
+              <select id="map-id" style="flex:1;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-family:var(--sans);font-size:.8rem;background:var(--bg1)">
+                <option value="">— seçin —</option>
+              </select>
+            </div>
+
+            <!-- Demografik kolonlar -->
+            <div>
+              <span style="font-family:var(--mono);font-size:.7rem;color:var(--muted);display:block;margin-bottom:6px">
+                Demografik (bias tespiti için)
+              </span>
+              <div id="map-demo-cols" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+            </div>
+
+            <!-- Metrik kolonlar -->
+            <div>
+              <span style="font-family:var(--mono);font-size:.7rem;color:var(--muted);display:block;margin-bottom:6px">
+                Metrik (skorlama için — en az 1)
+              </span>
+              <div id="map-metric-cols" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+            </div>
+          </div>
+
+          <button onclick="saveMapping()"
+            style="margin-top:14px;width:100%;padding:9px;background:var(--indigo);color:#fff;border:none;border-radius:8px;font-family:var(--mono);font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;cursor:pointer">
+            Eşlemeyi Kaydet →
+          </button>
+          <div id="mapping-status" style="display:none;margin-top:8px;font-size:.75rem;font-family:var(--mono);color:var(--green)"></div>
+        </div>
+
+        <div class="template-row">
+          <a href="/api/template" class="template-link">⬇ Şablon CSV indir</a>
+          <span class="template-hint">Kolonları görmek için</span>
+        </div>
+
+        <button class="data-btn" id="upload-run-btn" onclick="startRun('upload')" disabled>
+          Analizi Başlat →
+        </button>
+      </div>
+
+      <!-- Ayraç -->
+      <div class="data-or">veya</div>
+
+      <!-- Demo -->
+      <div class="data-card" id="demo-card">
+        <div class="data-card-head">
+          <div class="data-card-icon">▶</div>
+          <div>
+            <div class="data-card-title">Demo ile Deneyin</div>
+            <div class="data-card-sub">Hazır örnek müşteri verisi</div>
+          </div>
+        </div>
+
+        <div class="demo-info">
+          <div class="demo-stat"><span>303</span> müşteri kaydı</div>
+          <div class="demo-stat"><span>17</span> değişken</div>
+          <div class="demo-stat"><span>~4</span> dakika</div>
+        </div>
+
+        <p class="demo-desc">
+          Kasıtlı bias, eksik değer ve format hatası içeren örnek veri. Sistemin nasıl çalıştığını görün.
+        </p>
+
+        <button class="data-btn" onclick="startRun('demo')">
+          Demo Başlat →
+        </button>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ════════════════════════════
+       PIPELINE
+  ════════════════════════════ -->
+  <section id="pipeline">
+    <div class="pipeline-header">
+      <div class="pipeline-title">Analiz çalışıyor</div>
+      <div class="pipeline-counter" id="pipeline-counter">0 / 7 tamamlandı</div>
+    </div>
+
+    <div class="progress-track">
+      <div id="progress-fill"></div>
+    </div>
+
+    <div class="timeline" id="timeline"></div>
+
+    <div id="pipeline-error" class="error-msg" style="display:none"></div>
+  </section>
+
+  <!-- ════════════════════════════
+       DASHBOARD
+  ════════════════════════════ -->
+  <section id="dashboard">
+
+    <!-- Funnel -->
+    <div class="dash-section">
+      <div class="dash-label">Müşteri Hunisi</div>
+      <div class="funnel">
+        <div class="funnel-item">
+          <div class="funnel-num" id="f-raw">—</div>
+          <div class="funnel-lbl">Ham Veri</div>
+          <div class="funnel-pct" style="color:var(--muted)">başlangıç</div>
+        </div>
+        <div class="funnel-arr">→</div>
+        <div class="funnel-item">
+          <div class="funnel-num" id="f-clean">—</div>
+          <div class="funnel-lbl">Temizleme</div>
+          <div class="funnel-pct" id="f-clean-pct"></div>
+        </div>
+        <div class="funnel-arr">→</div>
+        <div class="funnel-item">
+          <div class="funnel-num" id="f-final">—</div>
+          <div class="funnel-lbl">Final Hedef Kitle</div>
+          <div class="funnel-pct" id="f-final-pct"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bias -->
+    <div class="dash-section">
+      <div class="dash-label">Bias Durumu</div>
+      <div class="bias-grid">
+        <div class="bias-card">
+          <div class="bias-card-head">
+            <div class="bias-card-name">Gelir Grubu</div>
+            <div class="bias-badge" id="b-gelir-badge">—</div>
+          </div>
+          <div class="bias-val" id="b-gelir-val">—</div>
+          <div class="bias-sub">puan farkı · eşik: 5.0</div>
+          <div class="bias-track"><div class="bias-fill" id="b-gelir-fill" style="width:0%"></div></div>
+        </div>
+        <div class="bias-card">
+          <div class="bias-card-head">
+            <div class="bias-card-name">Cinsiyet</div>
+            <div class="bias-badge" id="b-cin-badge">—</div>
+          </div>
+          <div class="bias-val" id="b-cin-val">—</div>
+          <div class="bias-sub">puan farkı · eşik: 5.0</div>
+          <div class="bias-track"><div class="bias-fill" id="b-cin-fill" style="width:0%"></div></div>
+        </div>
+        <div class="bias-card">
+          <div class="bias-card-head">
+            <div class="bias-card-name">Yaş Grubu</div>
+            <div class="bias-badge" id="b-yas-badge">—</div>
+          </div>
+          <div class="bias-val" id="b-yas-val">—</div>
+          <div class="bias-sub">puan farkı · eşik: 5.0</div>
+          <div class="bias-track"><div class="bias-fill" id="b-yas-fill" style="width:0%"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Özet stats -->
+    <div class="dash-section">
+      <div class="dash-label">Final Kitle Profili</div>
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="stat-val" id="s-skor">—</div>
+          <div class="stat-lbl">Ort. Skor</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-val" id="s-harcama">—</div>
+          <div class="stat-lbl">Ort. Harcama (₺)</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-val" id="s-oyun">—</div>
+          <div class="stat-lbl">Ort. Oyun Saati</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-val" id="s-yas">—</div>
+          <div class="stat-lbl">Ort. Yaş</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Optimal Kitle -->
+    <div class="dash-section">
+      <div class="dash-label" style="margin-bottom:4px">⭐ Optimal Hedef Kitle</div>
+      <p style="font-size:.78rem;color:var(--muted);margin-bottom:10px;font-family:var(--sans)">
+        Mevcut skor <strong>ve</strong> gelecek harcama potansiyeli yüksek müşteriler.
+      </p>
+      <div style="display:flex;gap:16px;margin-bottom:14px;font-size:.72rem;font-family:var(--mono)">
+        <span><span style="color:#6366f1;font-weight:600">K</span> <span style="color:var(--muted)">Katılım %30</span></span>
+        <span><span style="color:var(--green);font-weight:600">S</span> <span style="color:var(--muted)">Sadakat %25</span></span>
+        <span><span style="color:var(--yellow);font-weight:600">İ</span> <span style="color:var(--muted)">İkna Edilebilirlik %22</span></span>
+      </div>
+      <div class="table-wrap">
+        <table id="optimal-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Yaş</th>
+              <th>Cinsiyet</th>
+              <th>Gelir</th>
+              <th>Abonelik</th>
+              <th>Tür</th>
+              <th>Oyun / Hf.</th>
+              <th>Harcama</th>
+              <th title="Katılım · Sadakat · İkna Edilebilirlik">Bileşenler</th>
+              <th>Mevcut Skor</th>
+              <th>Gelecek Potansiyel</th>
+            </tr>
+          </thead>
+          <tbody id="optimal-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Final Kitle -->
+    <div class="dash-section">
+      <div class="dash-label" style="margin-bottom:12px">
+        Tüm Final Hedef Kitle
+        <button id="download-btn" onclick="downloadCSV()" style="margin-left:auto">
+          ↓ CSV İndir
+        </button>
+      </div>
+      <div class="table-wrap">
+        <table id="customer-table">
+          <thead>
+            <tr>
+              <th onclick="sortTable('musteri_id')">ID</th>
+              <th onclick="sortTable('yas')">Yaş</th>
+              <th onclick="sortTable('cinsiyet')">Cinsiyet</th>
+              <th onclick="sortTable('gelir_seviyesi')">Gelir</th>
+              <th onclick="sortTable('cihaz_turu')">Cihaz</th>
+              <th onclick="sortTable('tercih_edilen_tur')">Tür Tercihi</th>
+              <th onclick="sortTable('haftalik_oyun_saati')">Oyun / Hf.</th>
+              <th onclick="sortTable('aylik_ortalama_harcama')">Harcama</th>
+              <th onclick="sortTable('potansiyel_skor')">Skor</th>
+            </tr>
+          </thead>
+          <tbody id="table-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </section>
+
+</div><!-- /.wrap -->
+
+<script>
+// ══════════════════════════════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════════════════════════════
+const AGENT_NAMES = [
+  "Veri Temizleme",
+  "Segmentasyon",
+  "Skorlama & Eşik Kontrolü",
+  "Bias Tespiti",
+  "Proxy Değişken Tespiti",
+  "Eleştirmen",
+  "Yeniden Optimizasyon",
+  "Gelecek Harcama Potansiyeli",
+];
+
+const AGENT_DESCS = [
+  "Eksik değerler, aykırı değerler ve format tutarsızlıkları temizleniyor",
+  "Müşteriler davranış ve potansiyele göre segmentlere ayrılıyor",
+  "Potansiyel skorları hesaplanıyor, bias eşiği kontrol ediliyor",
+  "Demografik gruplar arası sistematik dışlama analiz ediliyor",
+  "Dolaylı bias üreten proxy değişkenler tespit ediliyor",
+  "Kararlar counterfactual test ile sayısal olarak sorgulanıyor",
+  "Bias bulgularına göre final hedef kitle oluşturuluyor",
+  "Bağlılık, sadakat ve ikna edilebilirlik ile gelecek potansiyel hesaplanıyor",
+];
+
+let tableData = [];
+let sortCol   = "potansiyel_skor";
+let sortDir   = "desc";
+let doneCount = 0;
+
+// ── Timeline oluştur ──────────────────────────────────────────
+function buildTimeline() {
+  const tl = document.getElementById("timeline");
+  tl.innerHTML = "";
+  AGENT_NAMES.forEach((name, i) => {
+    const el = document.createElement("div");
+    el.className = "step";
+    el.id = `step-${i}`;
+    el.innerHTML = `
+      <div class="step-icon-col">
+        <div class="step-icon" id="icon-${i}">
+          <span class="step-num-inner">${String(i+1).padStart(2,"0")}</span>
+        </div>
+      </div>
+      <div class="step-body">
+        <div class="step-name">${name}</div>
+        <div class="step-desc">${AGENT_DESCS[i]}</div>
+        <div class="step-summary" id="summary-${i}"></div>
+      </div>`;
+    tl.appendChild(el);
+  });
+}
+
+// ── Ajanı aktif yap ───────────────────────────────────────────
+function setAgentRunning(idx) {
+  const step = document.getElementById(`step-${idx}`);
+  const icon = document.getElementById(`icon-${idx}`);
+  if (!step) return;
+  step.classList.add("active");
+  icon.innerHTML = `<div class="spin-ring"></div>`;
+}
+
+// ── Ajanı tamamlandı yap ──────────────────────────────────────
+function setAgentDone(idx, summary) {
+  const step    = document.getElementById(`step-${idx}`);
+  const icon    = document.getElementById(`icon-${idx}`);
+  const sumEl   = document.getElementById(`summary-${idx}`);
+  if (!step) return;
+
+  const level = summary.level || "ok";
+  const icon_char = level === "error" ? "✕" : level === "warn" ? "⚠" : "✓";
+
+  step.classList.remove("active");
+  step.classList.add("done");
+  if (level === "warn" || level === "error") step.classList.add("warn");
+
+  icon.innerHTML = icon_char;
+
+  if (summary.text) {
+    sumEl.textContent = summary.text;
+    sumEl.className   = `step-summary ${level === "error" ? "warn" : level}`;
+    sumEl.style.display = "block";
+  }
+
+  doneCount++;
+  document.getElementById("pipeline-counter").textContent = `${doneCount} / 7 tamamlandı`;
+  document.getElementById("progress-fill").style.width = `${(doneCount / 7) * 100}%`;
+}
+
+// ══════════════════════════════════════════════════════════════
+//  UPLOAD
+// ══════════════════════════════════════════════════════════════
+let uploadedOk = false;
+
+function onDragOver(e) {
+  e.preventDefault();
+  document.getElementById("drop-zone").classList.add("over");
+}
+
+function onDragLeave(e) {
+  document.getElementById("drop-zone").classList.remove("over");
+}
+
+function onDrop(e) {
+  e.preventDefault();
+  document.getElementById("drop-zone").classList.remove("over");
+  const file = e.dataTransfer.files[0];
+  if (file) onFileSelect(file);
+}
+
+async function onFileSelect(file) {
+  if (!file || !file.name.endsWith(".csv")) {
+    showUploadStatus("Sadece .csv dosyası kabul edilir.", "error");
+    return;
+  }
+
+  const statusEl = document.getElementById("upload-status");
+  statusEl.style.display = "block";
+  statusEl.className = "upload-status";
+  statusEl.textContent = "⟳ Yükleniyor…";
+
+  const form = new FormData();
+  form.append("file", file);
+
+  try {
+    const res  = await fetch("/api/upload", { method: "POST", body: form });
+    const data = await res.json();
+
+    if (data.error) {
+      showUploadStatus("⚠ " + data.error, "error");
+      uploadedOk = false;
+    } else {
+      showUploadStatus(
+        `✓ ${data.rows} satır yüklendi · ${data.columns_info.length} kolon`,
+        "ok"
+      );
+      uploadedOk = false; // mapping tamamlanınca true olur
+      document.getElementById("drop-zone").querySelector(".drop-text").textContent = file.name;
+      buildMappingUI(data.columns_info);
+    }
+  } catch {
+    showUploadStatus("⚠ Sunucuya bağlanılamadı.", "error");
+  }
+}
+
+function showUploadStatus(msg, type) {
+  const el = document.getElementById("upload-status");
+  el.style.display = "block";
+  el.className = "upload-status " + type;
+  el.textContent = msg;
+}
+
+let detectedColumns = [];
+
+function buildMappingUI(columnsInfo) {
+  detectedColumns = columnsInfo;
+  document.getElementById("col-mapping").style.display = "block";
+
+  // ID dropdown
+  const idSel = document.getElementById("map-id");
+  idSel.innerHTML = '<option value="">— seçin —</option>';
+  columnsInfo.forEach(c => {
+    const opt = document.createElement("option");
+    opt.value = c.name;
+    opt.textContent = `${c.name} (${c.dtype}, ${c.unique} unique)`;
+    if (c.suggested_role === "id") opt.selected = true;
+    idSel.appendChild(opt);
+  });
+
+  // Demografik checkbox'ları
+  const demoDiv = document.getElementById("map-demo-cols");
+  demoDiv.innerHTML = "";
+  columnsInfo.forEach(c => {
+    const label = document.createElement("label");
+    label.style.cssText = "display:flex;align-items:center;gap:5px;font-size:.75rem;font-family:var(--mono);padding:4px 8px;border:1px solid var(--border);border-radius:6px;cursor:pointer;background:var(--bg1)";
+    const cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.value = c.name;
+    cb.name = "demo-col";
+    if (c.suggested_role === "demographic") cb.checked = true;
+    label.appendChild(cb);
+    label.appendChild(document.createTextNode(c.name));
+    demoDiv.appendChild(label);
+  });
+
+  // Metrik checkbox'ları
+  const metricDiv = document.getElementById("map-metric-cols");
+  metricDiv.innerHTML = "";
+  columnsInfo.forEach(c => {
+    if (c.dtype === "object") return; // sadece numerikler
+    const label = document.createElement("label");
+    label.style.cssText = "display:flex;align-items:center;gap:5px;font-size:.75rem;font-family:var(--mono);padding:4px 8px;border:1px solid var(--border);border-radius:6px;cursor:pointer;background:var(--bg1)";
+    const cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.value = c.name;
+    cb.name = "metric-col";
+    if (c.suggested_role === "metric") cb.checked = true;
+    label.appendChild(cb);
+    label.appendChild(document.createTextNode(c.name));
+    metricDiv.appendChild(label);
+  });
+}
+
+async function saveMapping() {
+  const idCol = document.getElementById("map-id").value;
+  if (!idCol) { alert("Lütfen bir ID kolonu seçin."); return; }
+
+  const demoCols = [...document.querySelectorAll('input[name="demo-col"]:checked')].map(e => e.value);
+  const metricCols = [...document.querySelectorAll('input[name="metric-col"]:checked')].map(e => e.value);
+
+  if (metricCols.length === 0) { alert("En az 1 metrik kolon seçin."); return; }
+
+  const mapping = { id_col: idCol, demographic_cols: demoCols, metric_cols: metricCols };
+
+  try {
+    const res  = await fetch("/api/set-mapping", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(mapping),
+    });
+    const data = await res.json();
+    if (data.ok) {
+      document.getElementById("mapping-status").style.display = "block";
+      document.getElementById("mapping-status").textContent =
+        `✓ Eşleme kaydedildi — ${metricCols.length} metrik, ${demoCols.length} demografik`;
+      uploadedOk = true;
+      document.getElementById("upload-run-btn").disabled = false;
+    }
+  } catch {
+    alert("Eşleme kaydedilemedi.");
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+//  ANALİZ BAŞLAT  (demo veya upload)
+// ══════════════════════════════════════════════════════════════
+async function startRun(mode) {
+  // Landing → Pipeline
+  document.getElementById("landing").style.display  = "none";
+  document.getElementById("pipeline").style.display = "block";
+
+  doneCount = 0;
+  buildTimeline();
+
+  const errEl = document.getElementById("pipeline-error");
+  errEl.style.display = "none";
+
+  try {
+    const res = await fetch("/api/demo", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mode }),
+    });
+
+    if (!res.ok) throw new Error("Sunucu hatası: " + res.status);
+
+    const reader  = res.body.getReader();
+    const decoder = new TextDecoder();
+    let   buffer  = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const parts = buffer.split("\n\n");
+      buffer = parts.pop();
+
+      for (const part of parts) {
+        const line = part.trim();
+        if (!line.startsWith("data:")) continue;
+        try {
+          const msg = JSON.parse(line.slice(5).trim());
+          handlePipelineMsg(msg);
+        } catch {}
+      }
+    }
+  } catch (err) {
+    errEl.textContent    = "⚠ " + err.message;
+    errEl.style.display  = "block";
+  }
+}
+
+function handlePipelineMsg(msg) {
+  const errEl = document.getElementById("pipeline-error");
+
+  if (msg.type === "agent_start") {
+    setAgentRunning(msg.agent_index);
+  } else if (msg.type === "agent_done") {
+    setAgentDone(msg.agent_index, msg.summary);
+  } else if (msg.type === "complete") {
+    setTimeout(() => showDashboard(msg.dashboard), 800);
+  } else if (msg.type === "error") {
+    errEl.textContent   = "⚠ " + (msg.message || "Bilinmeyen hata");
+    errEl.style.display = "block";
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+//  DASHBOARD
+// ══════════════════════════════════════════════════════════════
+function showDashboard(data) {
+  document.getElementById("pipeline").style.display  = "none";
+  document.getElementById("dashboard").style.display = "block";
+
+  // Funnel
+  const [raw, clean, final] = data.funnel;
+  animateNumber("f-raw",   raw);
+  animateNumber("f-clean", clean);
+  animateNumber("f-final", final);
+
+  document.getElementById("f-clean-pct").textContent =
+    `-${Math.round((1 - clean / raw) * 100)}% elendi`;
+  document.getElementById("f-final-pct").textContent =
+    `-${Math.round((1 - final / raw) * 100)}% elenme oranı`;
+
+  // Bias gauges
+  const biasKeys = { gelir: "b-gelir", cinsiyet: "b-cin", yas: "b-yas" };
+  const biasLabels = { green: "🟢 OK", yellow: "🟡 Orta", red: "🔴 Kritik" };
+
+  Object.entries(biasKeys).forEach(([key, prefix]) => {
+    const b = data.bias[key];
+    if (!b) return;
+    const pct = Math.min((b.fark / 10) * 100, 100);
+    document.getElementById(`${prefix}-val`).textContent  = b.fark.toFixed(1);
+    document.getElementById(`${prefix}-val`).className    = `bias-val ${b.level}`;
+    document.getElementById(`${prefix}-badge`).textContent = biasLabels[b.level] || b.level;
+    document.getElementById(`${prefix}-badge`).className  = `bias-badge ${b.level}`;
+    setTimeout(() => {
+      const fill = document.getElementById(`${prefix}-fill`);
+      fill.className = `bias-fill ${b.level}`;
+      fill.style.width = pct + "%";
+    }, 200);
+  });
+
+  // Stats
+  const oz = data.ozet;
+  document.getElementById("s-skor").textContent    = oz.ort_skor;
+  document.getElementById("s-harcama").textContent = Math.round(oz.ort_harcama) + "₺";
+  document.getElementById("s-oyun").textContent    = oz.ort_oyun + "s";
+  document.getElementById("s-yas").textContent     = oz.ort_yas;
+
+  // Final table
+  tableData = data.final_list || [];
+  renderTable();
+
+  // Optimal table
+  renderOptimalTable(data.optimal_list || []);
+}
+
+function renderOptimalTable(list) {
+  const tbody = document.getElementById("optimal-body");
+  tbody.innerHTML = "";
+
+  if (!list.length) {
+    tbody.innerHTML = `<tr><td colspan="11" style="text-align:center;color:var(--muted);padding:20px;font-family:var(--mono);font-size:.72rem">Henüz hesaplanmadı</td></tr>`;
+    return;
+  }
+
+  list.forEach((row, i) => {
+    const gelir = row.gelir_seviyesi;
+    const gelirClass = gelir === "Yüksek" ? "tag-gelir-yuksek"
+                     : gelir === "Orta"   ? "tag-gelir-orta"
+                     : "tag-gelir-dusuk";
+
+    const gelecek   = parseFloat(row.gelecek_potansiyel) || 0;
+    const mevcut    = parseFloat(row.potansiyel_skor)    || 0;
+    const katilim   = parseFloat(row._katilim)           || 0;
+    const sadakat   = parseFloat(row._sadakat)           || 0;
+    const ikna      = parseFloat(row._ikna)              || 0;
+    const isPremium = row.abonelik_turu === "Premium";
+
+    const tr = document.createElement("tr");
+    if (i < 3) tr.style.background = "rgba(67,56,202,.04)"; // top 3 vurgusu
+
+    tr.innerHTML = `
+      <td style="font-family:var(--mono);font-size:.7rem;color:var(--muted)">${row.musteri_id}</td>
+      <td>${row.yas}</td>
+      <td>${row.cinsiyet}</td>
+      <td><span class="tag ${gelirClass}">${gelir}</span></td>
+      <td style="font-size:.75rem">${isPremium ? '⭐ Premium' : 'Ücretsiz'}</td>
+      <td>${row.tercih_edilen_tur}</td>
+      <td>${row.haftalik_oyun_saati} s</td>
+      <td>${Math.round(row.aylik_ortalama_harcama)} ₺</td>
+      <td>
+        <div style="display:flex;flex-direction:column;gap:2px;min-width:90px">
+          <div style="display:flex;align-items:center;gap:4px;font-size:.62rem;font-family:var(--mono)">
+            <span style="width:22px;color:var(--muted)">K</span>
+            <div style="flex:1;height:4px;background:var(--bg2);border-radius:2px">
+              <div style="height:4px;border-radius:2px;background:#6366f1;width:${Math.min(katilim,100)}%"></div>
+            </div>
+            <span style="width:22px;text-align:right;color:#6366f1">${katilim.toFixed(0)}</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:4px;font-size:.62rem;font-family:var(--mono)">
+            <span style="width:22px;color:var(--muted)">S</span>
+            <div style="flex:1;height:4px;background:var(--bg2);border-radius:2px">
+              <div style="height:4px;border-radius:2px;background:var(--green);width:${Math.min(sadakat,100)}%"></div>
+            </div>
+            <span style="width:22px;text-align:right;color:var(--green)">${sadakat.toFixed(0)}</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:4px;font-size:.62rem;font-family:var(--mono)">
+            <span style="width:22px;color:var(--muted)">İ</span>
+            <div style="flex:1;height:4px;background:var(--bg2);border-radius:2px">
+              <div style="height:4px;border-radius:2px;background:var(--yellow);width:${Math.min(ikna,100)}%"></div>
+            </div>
+            <span style="width:22px;text-align:right;color:var(--yellow)">${ikna.toFixed(0)}</span>
+          </div>
+        </div>
+      </td>
+      <td>
+        <div class="score-bar">
+          <div class="score-track"><div class="score-fill" style="width:${Math.min(mevcut,100)}%"></div></div>
+          ${mevcut.toFixed(1)}
+        </div>
+      </td>
+      <td>
+        <div class="score-bar">
+          <div class="score-track"><div class="score-fill" style="width:${Math.min(gelecek,100)}%;background:var(--green)"></div></div>
+          <strong style="color:var(--indigo)">${gelecek.toFixed(1)}</strong>
+        </div>
+      </td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+// ── Animasyonlu sayaç ─────────────────────────────────────────
+function animateNumber(id, target) {
+  const el    = document.getElementById(id);
+  const start = 0;
+  const dur   = 800;
+  const begin = performance.now();
+
+  function tick(now) {
+    const p = Math.min((now - begin) / dur, 1);
+    const ease = 1 - Math.pow(1 - p, 3);
+    el.textContent = Math.round(start + (target - start) * ease);
+    if (p < 1) requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+}
+
+// ══════════════════════════════════════════════════════════════
+//  TABLE
+// ══════════════════════════════════════════════════════════════
+function renderTable() {
+  const sorted = [...tableData].sort((a, b) => {
+    const va = a[sortCol], vb = b[sortCol];
+    const cmp = typeof va === "number" ? va - vb : String(va).localeCompare(String(vb));
+    return sortDir === "asc" ? cmp : -cmp;
+  });
+
+  const tbody = document.getElementById("table-body");
+  tbody.innerHTML = "";
+
+  sorted.forEach(row => {
+    const gelir = row.gelir_seviyesi;
+    const gelirClass = gelir === "Yüksek" ? "tag-gelir-yuksek"
+                     : gelir === "Orta"   ? "tag-gelir-orta"
+                     : "tag-gelir-dusuk";
+    const skor = parseFloat(row.potansiyel_skor) || 0;
+    const pct  = Math.min(skor, 100);
+
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td style="font-family:var(--mono);font-size:.7rem;color:var(--muted)">${row.musteri_id}</td>
+      <td>${row.yas}</td>
+      <td>${row.cinsiyet}</td>
+      <td><span class="tag ${gelirClass}">${gelir}</span></td>
+      <td>${row.cihaz_turu}</td>
+      <td>${row.tercih_edilen_tur}</td>
+      <td>${row.haftalik_oyun_saati} s</td>
+      <td>${Math.round(row.aylik_ortalama_harcama)} ₺</td>
+      <td>
+        <div class="score-bar">
+          <div class="score-track"><div class="score-fill" style="width:${pct}%"></div></div>
+          ${skor.toFixed(1)}
+        </div>
+      </td>`;
+    tbody.appendChild(tr);
+  });
+
+  // Sort header güncelle
+  document.querySelectorAll("th").forEach(th => {
+    th.classList.remove("sort-asc", "sort-desc");
+  });
+}
+
+function sortTable(col) {
+  if (sortCol === col) {
+    sortDir = sortDir === "asc" ? "desc" : "asc";
+  } else {
+    sortCol = col;
+    sortDir = "desc";
+  }
+  renderTable();
+
+  const ths = document.querySelectorAll("th");
+  const cols = ["musteri_id","yas","cinsiyet","gelir_seviyesi","cihaz_turu",
+                "tercih_edilen_tur","haftalik_oyun_saati","aylik_ortalama_harcama","potansiyel_skor"];
+  const idx = cols.indexOf(col);
+  if (idx >= 0 && ths[idx]) {
+    ths[idx].classList.add(sortDir === "asc" ? "sort-asc" : "sort-desc");
+  }
+}
+
+// ── CSV indir ─────────────────────────────────────────────────
+function downloadCSV() {
+  if (!tableData.length) return;
+  const keys = Object.keys(tableData[0]);
+  const rows = [keys.join(","), ...tableData.map(r => keys.map(k => `"${r[k]}"`).join(","))];
+  const blob = new Blob([rows.join("\n")], { type: "text/csv" });
+  const a    = document.createElement("a");
+  a.href     = URL.createObjectURL(blob);
+  a.download = "final_targets.csv";
+  a.click();
+}
+
+// ══════════════════════════════════════════════════════════════
+//  CHATBOT
+// ══════════════════════════════════════════════════════════════
+let chatHistory = [];
+let chatOpen    = false;
+
+function toggleChat() {
+  chatOpen = !chatOpen;
+  document.getElementById("chat-panel").style.display  = chatOpen ? "flex" : "none";
+  document.getElementById("chat-toggle").textContent   = chatOpen ? "✕" : "💬";
+  if (chatOpen) document.getElementById("chat-input").focus();
+}
+
+async function sendChat() {
+  const input = document.getElementById("chat-input");
+  const msg   = input.value.trim();
+  if (!msg) return;
+  input.value = "";
+
+  appendChatMsg("user", msg);
+  chatHistory.push({ role: "user", content: msg });
+
+  const typingEl = appendChatMsg("assistant", "...", true);
+
+  try {
+    const res  = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: msg, history: chatHistory.slice(-10) }),
+    });
+    const data = await res.json();
+    const reply = data.reply || data.error || "Bir hata oluştu.";
+    typingEl.textContent = reply;
+    chatHistory.push({ role: "assistant", content: reply });
+  } catch (e) {
+    typingEl.textContent = "Bağlantı hatası: " + e.message;
+  }
+
+  const log = document.getElementById("chat-log");
+  log.scrollTop = log.scrollHeight;
+}
+
+function appendChatMsg(role, text, isTyping = false) {
+  const log  = document.getElementById("chat-log");
+  const wrap = document.createElement("div");
+  wrap.className = `chat-msg chat-${role}`;
+  const bubble   = document.createElement("div");
+  bubble.className = "chat-bubble";
+  bubble.textContent = text;
+  if (isTyping) bubble.style.opacity = "0.5";
+  wrap.appendChild(bubble);
+  log.appendChild(wrap);
+  log.scrollTop = log.scrollHeight;
+  return bubble;
+}
+
+document.addEventListener("keydown", e => {
+  if (e.key === "Enter" && document.activeElement.id === "chat-input" && !e.shiftKey) {
+    e.preventDefault();
+    sendChat();
+  }
+});
+
+</script>
+
+<!-- ── Chat panel ─────────────────────────────────────────────────── -->
+<style>
+  #chat-toggle {
+    position: fixed; bottom: 28px; right: 28px; z-index: 1000;
+    width: 52px; height: 52px; border-radius: 50%;
+    background: var(--indigo); color: #fff;
+    font-size: 1.35rem; border: none; cursor: pointer;
+    box-shadow: 0 4px 18px rgba(67,56,202,.35);
+    display: flex; align-items: center; justify-content: center;
+    transition: transform .15s;
+  }
+  #chat-toggle:hover { transform: scale(1.08); }
+
+  #chat-panel {
+    display: none; flex-direction: column;
+    position: fixed; bottom: 90px; right: 28px; z-index: 999;
+    width: 360px; height: 520px;
+    background: #fff; border: 1px solid var(--border);
+    border-radius: 16px; box-shadow: 0 8px 40px rgba(0,0,0,.13);
+    overflow: hidden;
+  }
+
+  #chat-header {
+    padding: 14px 18px; background: var(--indigo); color: #fff;
+    font-family: var(--sans); font-size: .9rem; font-weight: 600;
+    display: flex; align-items: center; gap: 10px; flex-shrink: 0;
+  }
+  #chat-header span { font-size: .78rem; opacity: .75; font-weight: 400; }
+
+  #chat-log {
+    flex: 1; overflow-y: auto; padding: 14px;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+
+  .chat-msg { display: flex; }
+  .chat-user  { justify-content: flex-end; }
+  .chat-assistant { justify-content: flex-start; }
+
+  .chat-bubble {
+    max-width: 82%; padding: 9px 13px;
+    border-radius: 14px; font-family: var(--sans);
+    font-size: .84rem; line-height: 1.5; white-space: pre-wrap;
+  }
+  .chat-user .chat-bubble {
+    background: var(--indigo); color: #fff;
+    border-bottom-right-radius: 4px;
+  }
+  .chat-assistant .chat-bubble {
+    background: var(--bg2); color: var(--text);
+    border-bottom-left-radius: 4px;
+  }
+
+  #chat-input-row {
+    display: flex; gap: 8px; padding: 12px; border-top: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  #chat-input {
+    flex: 1; padding: 9px 12px; border: 1px solid var(--border);
+    border-radius: 10px; font-family: var(--sans); font-size: .84rem;
+    outline: none; background: var(--bg);
+  }
+  #chat-input:focus { border-color: var(--indigo); }
+  #chat-send {
+    padding: 9px 14px; background: var(--indigo); color: #fff;
+    border: none; border-radius: 10px; cursor: pointer;
+    font-size: .84rem; font-weight: 600;
+  }
+  #chat-send:hover { opacity: .9; }
+
+  #chat-welcome {
+    background: var(--indigo-dim); border-radius: 10px;
+    padding: 11px 13px; font-size: .8rem; color: var(--muted);
+    font-family: var(--sans); line-height: 1.55;
+  }
+</style>
+
+<button id="chat-toggle" onclick="toggleChat()">💬</button>
+
+<div id="chat-panel">
+  <div id="chat-header">
+    🤖 TargetMind AI Asistan
+    <span>Analizi anlat, soru sor</span>
+  </div>
+  <div id="chat-log">
+    <div id="chat-welcome">
+      Merhaba! Pipeline'ın herhangi bir adımı hakkında soru sorabilirsin.<br><br>
+      Örneğin:<br>
+      • <em>"Bias nedir, neden önemli?"</em><br>
+      • <em>"Hangi oyun en yüksek skoru aldı ve neden?"</em><br>
+      • <em>"Counterfactual test ne işe yaradı?"</em><br>
+      • <em>"Proxy değişken nedir?"</em>
+    </div>
+  </div>
+  <div id="chat-input-row">
+    <input id="chat-input" type="text" placeholder="Bir şey sor…" />
+    <button id="chat-send" onclick="sendChat()">Gönder</button>
+  </div>
+</div>
+
+</body>
+</html>

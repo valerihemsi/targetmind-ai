@@ -1,0 +1,321 @@
+game_id,name,genre,platform,esrb_rating,rating,ratings_count,metacritic,added,playtime,reviews_count
+3498,Grand Theft Auto V,Action,PC,Mature,4.47,7384,92,22577,74,7520
+3328,The Witcher 3: Wild Hunt,Action,PC,Mature,4.64,7196,92,22220,43,7315
+4200,Portal 2,Shooter,PC,Everyone 10+,4.58,6102,95,20889,11,6159
+4291,Counter-Strike: Global Offensive,Shooter,PC,Mature,3.57,3637,81,18362,64,3674
+5286,Tomb Raider (2013),Action,PC,Mature,4.06,4095,86,17822,10,4129
+13536,Portal,Action,PC,Teen,4.49,5021,90,17814,4,5066
+12020,Left 4 Dead 2,Action,PC,Mature,4.1,3410,89,17508,9,3437
+28,Red Dead Redemption 2,Action,PC,Mature,4.59,5497,96,16884,21,5630
+5679,The Elder Scrolls V: Skyrim,Action,PC,Mature,4.42,4924,94,16872,46,4982
+13537,Half-Life 2,Action,PC,Mature,4.48,4102,96,16117,7,4130
+4062,BioShock Infinite,Action,PC,Mature,4.38,4172,94,16117,12,4215
+802,Borderlands 2,Action,PC,Mature,4.01,3319,89,16018,11,3340
+3439,Life is Strange,Adventure,PC,Mature,4.12,3773,83,15915,6,3821
+4286,BioShock,Action,PC,Mature,4.36,3364,96,14774,3,3408
+32,Destiny 2,Action,PC,Teen,3.52,2670,82,14587,6,2696
+58175,God of War (2018),Action,PC,Mature,4.54,5151,94,14566,15,5260
+3070,Fallout 4,Action,PC,Mature,3.81,3430,84,14296,38,3467
+1030,Limbo,Action,PC,Teen,4.14,3404,88,14152,3,3447
+3939,PAYDAY 2,Action,PC,Adults Only,3.52,2243,79,14146,9,2266
+11859,Team Fortress 2,Action,PC,Mature,3.68,2940,92,14051,8,2969
+2454,DOOM (2016),Action,PC,Mature,4.38,3633,85,14031,10,3674
+41494,Cyberpunk 2077,Action,PC,Mature,4.23,3014,73,13972,29,3122
+422,Terraria,Action,PC,Teen,4.07,2470,81,13520,15,2498
+4459,Grand Theft Auto IV,Action,PC,Mature,4.26,3109,95,13203,10,3144
+10213,Dota 2,Action,PC,Unrated,3.07,2859,90,13187,14,2899
+766,Warframe,Action,PC,Unrated,3.42,2115,73,13149,8,2130
+3272,Rocket League,Sports,PC,Everyone,3.93,2861,86,12844,21,2885
+278,Horizon Zero Dawn,Action,PC,Teen,4.27,3774,89,12828,11,3824
+29028,Metro 2033,Action,PC,Mature,3.94,2293,79,12760,2,2300
+7689,Rise of the Tomb Raider,Action,PC,Unrated,4.04,2804,86,12410,14,2828
+3287,Batman: Arkham Knight,Action,PC,Mature,4.24,2687,81,12288,19,2711
+3192,Metal Gear Solid V: The Phantom Pain,Action,PC,Mature,4.16,2529,91,12195,22,2548
+416,Grand Theft Auto: San Andreas,Action,PC,Mature,4.5,4064,93,12133,2,4093
+16944,The Witcher 2: Assassins of Kings Enhanced Edition,RPG,PC,Mature,4.17,2183,88,12045,7,2198
+290856,Apex Legends,Action,PC,Teen,3.63,2417,80,12023,5,2443
+17822,The Witcher: Enhanced Edition Director's Cut,Action,PC,Mature,4.06,2055,86,11936,5,2070
+9767,Hollow Knight,Action,PC,Everyone 10+,4.4,2736,88,11876,7,2796
+11973,Middle-earth: Shadow of Mordor,Action,PC,Mature,3.91,2554,85,11776,13,2585
+19103,Half-Life 2: Lost Coast,Action,PC,Mature,3.45,1175,0,11696,1,1178
+23027,The Walking Dead: Season 1,Action,PC,Mature,4.36,2487,92,11682,8,2512
+41,Little Nightmares,Action,PC,Unrated,4.04,1639,81,11676,3,1672
+4427,BioShock 2,Action,PC,Mature,4.07,1963,88,11565,3,1978
+18080,Half-Life,Action,PC,Mature,4.37,2446,96,11535,3,2470
+19710,Half-Life 2: Episode One,Action,PC,Mature,4.38,2068,87,11401,4,2077
+19709,Half-Life 2: Episode Two,Action,PC,Mature,4.46,2018,90,11291,5,2028
+11936,Half-Life 2: Deathmatch,Action,PC,Mature,3.29,909,0,11254,1,912
+2551,Dark Souls III,Action,PC,Mature,4.4,2779,89,11239,29,2807
+654,Stardew Valley,RPG,PC,Everyone 10+,4.39,2463,89,11033,13,2497
+10754,BioShock Remastered,Shooter,PC,Mature,4.24,1421,0,10925,4,1438
+4252,Mirror's Edge,Action,PC,Teen,4.07,2385,81,10922,3,2409
+3612,Hotline Miami,Action,PC,Unrated,4.38,2648,85,10909,5,2678
+10035,Hitman,Action,PC,Adults Only,3.93,2033,83,10889,7,2045
+3790,Outlast,Action,PC,Mature,3.75,1864,80,10880,3,1877
+4161,Far Cry 3,Action,PC,Mature,4.26,2997,88,10833,16,3033
+1447,Deus Ex: Mankind Divided,Action,PC,Mature,3.96,2016,83,10798,7,2038
+10142,PlayerUnknown’s Battlegrounds,Action,PC,Unrated,3.27,2001,81,10700,29,2024
+10533,Path of Exile,Action,PC,Unrated,3.65,1644,86,10645,6,1656
+19487,Alan Wake,Action,PC,Teen,4.09,2293,83,10509,5,2312
+58134,Marvel's Spider-Man,Action,PC,Teen,4.45,3714,87,10496,6,3788
+3696,Wolfenstein: The New Order,Action,PC,Mature,4.18,2519,81,10475,12,2540
+29177,Detroit: Become Human,Action,PC,Mature,4.34,3328,79,10454,10,3398
+9721,Garry's Mod,Action,PC,Rating Pending,3.81,1610,0,10444,14,1623
+13668,Amnesia: The Dark Descent,Action,PC,Mature,3.65,1238,85,10437,2,1257
+4332,Spec Ops: The Line,Action,PC,Mature,4.1,1949,76,10409,5,1969
+11935,Half-Life Deathmatch: Source,Action,PC,Mature,3.21,729,0,10389,1,730
+4386,Saints Row: The Third,Action,PC,Mature,3.95,2077,84,10351,14,2093
+39,Prey,Action,PC,Mature,4.28,2243,80,10251,10,2282
+5563,Fallout: New Vegas,Action,PC,Mature,4.43,2632,84,10246,12,2655
+4828,Borderlands,Action,PC,Adults Only,3.82,2126,81,10149,10,2144
+12447,The Elder Scrolls V: Skyrim Special Edition,Action,PC,Mature,4.45,1972,74,10086,9,1982
+864,Dishonored 2,Action,PC,Mature,4.26,2030,86,10029,12,2052
+4248,Dishonored,Action,PC,Mature,4.38,2738,91,9993,9,2771
+9882,Don't Starve Together,Action,PC,Unrated,3.77,1399,83,9966,7,1412
+12536,Hellblade: Senua's Sacrifice,Action,PC,Mature,4.22,2306,83,9927,6,2362
+430,Grand Theft Auto: Vice City,Action,PC,Mature,4.44,3104,94,9906,2,3122
+10243,Company of Heroes 2,Strategy,PC,Mature,3.1,872,80,9879,4,876
+17540,Injustice: Gods Among Us Ultimate Edition,Action,PC,Mature,3.53,1427,80,9863,5,1432
+3841,Assassin’s Creed IV: Black Flag,Action,PC,Mature,4.16,2659,85,9795,25,2684
+5583,Hitman: Absolution,Action,PC,Mature,3.76,1652,79,9778,7,1666
+13633,Sid Meier's Civilization V,Strategy,PC,Everyone 10+,4.29,2025,90,9776,27,2035
+58812,Control,Action,PC,Mature,4.14,2045,84,9734,6,2092
+4514,L.A. Noire,Action,PC,Mature,4.16,2071,83,9730,7,2091
+3144,Super Meat Boy,Indie,PC,Unrated,3.98,1771,87,9697,3,1782
+362,For Honor,Action,PC,Mature,3.3,1681,76,9683,8,1690
+257201,Star Wars Jedi: Fallen Order,Action,PC,Teen,4.13,2277,80,9664,8,2341
+2462,Uncharted 4: A Thief’s End,Action,PlayStation,Teen,4.48,3739,93,9623,0,3777
+11934,Counter-Strike: Source,Shooter,PC,Mature,3.75,1530,88,9548,7,1536
+4570,Dead Space (2008),Action,PC,Mature,4.39,2209,86,9543,3,2229
+4806,Mass Effect 2,Action,PC,Mature,4.46,3086,94,9528,22,3110
+50738,Death Stranding,Action,PC,Mature,4.31,2108,84,9398,11,2162
+3017,Just Cause 3,Action,PC,Mature,3.4,1585,74,9382,7,1597
+3604,Metro: Last Light Redux,Action,PC,Unrated,4.13,1701,76,9370,7,1723
+19301,Counter-Strike,Action,PC,Unrated,4.06,1655,88,9324,3,1662
+3603,Metro 2033 Redux,Action,PC,Mature,4.1,1928,88,9323,6,1950
+3543,Borderlands: The Pre-Sequel,Action,PC,Unrated,3.56,1385,75,9323,6,1394
+13535,Left 4 Dead,Action,PC,Mature,4.11,1699,89,9242,5,1713
+11142,BioShock 2 Remastered,Action,PC,Mature,4.0,1012,0,9177,4,1020
+274755,Hades,Action,PC,Teen,4.42,2091,93,9140,10,2135
+3747,Metal Gear Solid V: Ground Zeroes,Action,PC,Unrated,3.91,1716,80,9133,3,1723
+10141,NieR:Automata,Action,PC,Mature,4.37,2168,86,9080,13,2204
+108,Mortal Kombat X,Action,PC,Mature,3.86,2115,76,9034,7,2125
+4166,Mass Effect,Action,PC,Mature,4.39,2702,89,9016,9,2724
+3636,The Last Of Us Remastered,Action,PlayStation,Mature,4.69,2852,95,8987,16,2882
+22509,Minecraft,Action,PC,Everyone 10+,4.44,3137,83,8970,26,3199
+4513,Just Cause 2,Action,PC,Mature,3.62,1364,84,8935,3,1371
+326292,Fall Guys: Ultimate Knockout,Action,PC,Everyone,3.73,1355,80,8924,6,1381
+11147,ARK: Survival Of The Fittest,Action,PC,Teen,2.6,523,0,8920,1,524
+46889,Monster Hunter: World,Action,PC,Teen,4.01,1628,89,8837,15,1649
+3191,Mad Max,Action,PC,Mature,3.78,1755,73,8828,11,1775
+480,Resident Evil 7: Biohazard,Action,PC,Mature,4.33,1988,85,8784,10,2024
+25,Middle-earth: Shadow of War,Action,PC,Mature,3.86,1385,82,8767,13,1400
+613,Bastion,Action,PC,Unrated,4.14,1670,86,8754,4,1689
+17576,Batman: Arkham City - Game of the Year Edition,Action,PC,Teen,4.4,1466,91,8729,9,1471
+923,Titanfall 2,Action,PC,Mature,4.31,2080,87,8715,5,2119
+10989,Paladins,Action,PC,Teen,3.08,1423,78,8702,6,1427
+9810,ARK: Survival Evolved,Action,PC,Unrated,3.08,670,70,8687,6,674
+3387,Bloodborne,Action,PlayStation,Mature,4.41,2455,92,8675,12,2492
+10065,Cities: Skylines,Strategy,PC,Everyone,4.12,1531,85,8655,9,1542
+3254,Journey,Adventure,PC,Unrated,4.32,2462,92,8627,2,2482
+13627,Undertale,RPG,PC,Everyone 10+,4.35,1892,92,8609,5,1926
+17572,Batman: Arkham Asylum Game of the Year Edition,Action,PC,Unrated,4.39,1579,91,8594,8,1586
+9743,Unturned,Action,PC,Teen,2.74,1120,0,8551,3,1123
+45969,Warhammer: Vermintide 2,Action,PC,Mature,3.61,778,82,8540,7,790
+13910,XCOM: Enemy Unknown,Strategy,PC,Unrated,4.2,1590,89,8525,13,1598
+13554,Fallout,RPG,PC,Unrated,4.2,1224,0,8506,1,1236
+23585,Far Cry 5,Action,PC,Mature,3.72,2177,80,8503,19,2219
+1416,Mafia II,Action,PC,Mature,4.25,2213,77,8488,13,2230
+18240,Brothers: A Tale of Two Sons,Action,PC,Teen,4.18,1641,90,8449,3,1655
+3687,Watch Dogs,Action,PC,Mature,3.6,2219,77,8431,16,2235
+5525,Brutal Legend,Action,PC,Unrated,3.64,1096,80,8422,5,1101
+2743,Heavy Rain,Action,PC,Mature,4.12,2478,80,8418,5,2493
+51329,Shadow of the Tomb Raider,Action,PC,Mature,3.91,1655,78,8409,10,1673
+1450,INSIDE,Action,PC,Teen,4.38,2587,87,8409,4,2624
+28179,SEGA Mega Drive and Genesis Classics,Action,PC,Teen,2.98,571,76,8402,2,572
+28201,Metro Exodus,Action,PC,Mature,4.16,1708,81,8392,6,1737
+50734,Sekiro: Shadows Die Twice,Action,PC,Mature,4.38,2119,90,8384,16,2157
+2361,Psychonauts,Action,PC,Teen,4.05,985,87,8327,4,1001
+9830,Brawlhalla,Action,PC,Everyone 10+,3.22,1112,0,8286,2,1120
+4280,Max Payne 3,Action,PC,Mature,4.26,1939,87,8286,10,1957
+2819,Firewatch,Adventure,PC,Mature,4.3,2509,81,8272,5,2548
+58616,Assassin's Creed Odyssey,Action,PC,Mature,3.98,2104,85,8252,31,2138
+3931,Saints Row IV,Action,PC,Mature,3.82,1642,86,8244,13,1654
+2093,No Man's Sky,Action,PC,Teen,3.71,1582,75,8235,15,1595
+28568,Assassin's Creed II,Action,PC,Mature,4.43,2966,89,8220,14,2992
+8488,Tom Clancy's Rainbow Six Siege,Action,PC,Teen,3.88,1518,75,8219,32,1534
+3556,Alien: Isolation,Action,PC,Mature,4.21,1467,81,8191,4,1480
+262382,Disco Elysium,Adventure,PC,Mature,4.37,1348,91,8148,6,1368
+4223,The Darkness II,Action,PC,Mature,3.71,1121,77,8140,3,1127
+326243,Elden Ring,Action,PC,Mature,4.39,1462,95,8128,62,1506
+28154,Cuphead,Action,PC,Unrated,4.37,2035,87,8112,6,2080
+58654,Hitman 2,Action,PC,Mature,4.05,1226,83,8085,5,1235
+3678,War Thunder,Action,PC,Teen,3.19,1042,81,8077,6,1049
+2235,Batman: Arkham Origins,Action,PC,Teen,3.95,1594,74,8069,12,1611
+4502,Darksiders,Action,PC,Mature,3.76,1215,83,8065,3,1219
+11052,Titan Quest Anniversary Edition,Action,PC,Unrated,3.78,797,0,8020,5,805
+28153,Assassin's Creed Origins,Action,PC,Mature,3.96,2106,81,8004,28,2138
+58777,DOOM Eternal,Action,PC,Mature,4.37,1430,86,8002,12,1464
+356714,Among Us,Action,PC,Everyone 10+,3.83,1343,82,7953,5,1376
+58751,Halo Infinite,Action,PC,Teen,3.64,729,84,7882,2,744
+10340,Crusader Kings II,Strategy,PC,Unrated,3.61,755,82,7879,3,762
+1010,Transistor,Action,PC,Teen,4.16,1473,83,7837,4,1488
+1682,The Wolf Among Us,Adventure,PC,Mature,4.39,2181,82,7833,9,2206
+998,Battlefield 1,Action,PC,Unrated,3.84,1978,88,7782,6,1993
+3876,Deus Ex: Human Revolution - Director's Cut,Action,PC,Mature,4.3,1381,91,7779,6,1392
+2792,Layers of Fear,Adventure,PC,Mature,3.54,1120,72,7760,3,1125
+3497,Far Cry 4,Shooter,PC,Mature,3.82,1934,80,7740,17,1964
+4003,GRID 2,Racing,PC,Everyone 10+,3.3,831,80,7726,3,832
+13461,Resident Evil 5,Action,PC,Mature,3.82,1642,86,7707,11,1658
+1256,XCOM 2,RPG,PC,Teen,4.1,1314,88,7692,15,1327
+17959,Ori and the Blind Forest: Definitive Edition,Adventure,PC,Everyone,4.42,1721,88,7660,6,1746
+18613,Counter-Strike: Condition Zero,Action,PC,Unrated,3.15,829,65,7644,1,832
+15002,The Stanley Parable,Adventure,PC,Unrated,4.37,2034,88,7634,3,2052
+4527,Call of Duty: Modern Warfare 2,Shooter,PC,Mature,4.27,2083,86,7597,22,2093
+12024,Insurgency,Action,PC,Unrated,3.42,969,74,7572,4,973
+22571,Black Desert Online,Action,PC,Teen,2.91,650,73,7532,4,654
+4599,Saints Row 2,Action,PC,Mature,3.57,897,78,7530,2,902
+13305,Assassin’s Creed III,Action,PC,Mature,3.75,2189,80,7493,22,2210
+28172,Kingdom Come: Deliverance,Action,PC,Mature,4.05,1465,71,7490,10,1488
+13268,Amnesia: A Machine for Pigs,Action,PC,Unrated,3.23,685,72,7490,2,693
+19590,Ori and the Blind Forest,Adventure,PC,Everyone,4.38,1532,88,7489,6,1540
+10297,Sid Meier’s Civilization VI,Strategy,PC,Everyone 10+,4.16,1430,88,7477,15,1447
+10560,Total War: SHOGUN 2,Strategy,PC,Unrated,3.61,630,90,7464,5,631
+4544,Red Dead Redemption,Action,PC,Mature,4.42,2210,95,7457,6,2231
+3853,Trine 2: Complete Story,Action,PC,Unrated,3.72,897,84,7451,4,899
+51325,The Last of Us Part II,Action,PlayStation,Mature,4.42,2005,93,7428,0,2099
+3168,SOMA,Action,PC,Mature,4.17,1443,84,7425,6,1461
+11435,Viscera Cleanup Detail: Shadow Warrior,Action,PC,Mature,2.59,578,0,7412,2,580
+10061,Watch Dogs 2,Action,PC,Mature,3.84,1774,79,7384,17,1792
+1090,This War of Mine,Adventure,PC,Mature,4.07,1248,83,7366,4,1255
+3766,Thief,Action,PC,Mature,3.26,1280,70,7358,5,1282
+4013,Call of Juarez: Gunslinger,Action,PC,Unrated,3.81,844,79,7353,5,854
+432,Grand Theft Auto III,Action,PC,Mature,4.16,1645,93,7330,1,1662
+28202,Wolfenstein II: The New Colossus,Action,PC,Mature,4.09,1774,86,7302,11,1797
+11726,Dead Cells,Action,PC,Teen,4.23,1740,88,7296,10,1766
+3990,The Last Of Us,Action,PlayStation,Mature,4.54,3360,95,7287,15,3402
+17352,Killing Floor,Action,PC,Unrated,3.45,856,72,7267,5,858
+1358,"Papers, Please",Simulation,PC,Mature,4.37,1777,85,7267,4,1792
+906,Call of Duty: Black Ops III,Action,PC,Mature,3.27,1504,73,7264,16,1517
+952,Shadowrun Returns,RPG,PC,Unrated,3.5,732,76,7262,4,735
+10073,Divinity: Original Sin 2,RPG,PC,Mature,4.38,1675,95,7245,22,1699
+10548,Darksiders Warmastered Edition,Action,PC,Mature,3.68,939,79,7195,5,947
+18272,Magicka,Action,PC,Unrated,3.79,1093,74,7191,5,1098
+43877,Quake Champions,Action,PC,Mature,3.26,1019,0,7184,2,1023
+3474,Lara Croft and the Temple of Osiris,Action,PC,Unrated,3.09,651,73,7184,2,652
+28492,Dead Island,Action,PC,Mature,3.48,1366,74,7142,7,1375
+59359,A Plague Tale: Innocence,Action,PC,Mature,4.15,1537,82,7141,7,1581
+10419,Subnautica,Adventure,PC,Everyone 10+,4.24,1479,83,7136,10,1505
+3757,South Park: The Stick of Truth,Adventure,PC,Mature,4.23,1722,84,7119,12,1738
+559,Fallout Shelter,RPG,PC,Teen,3.43,1539,63,7113,3,1545
+8146,Assassin's Creed Unity,Action,PC,Mature,3.63,1719,71,7052,14,1741
+56184,Resident Evil 4 (2005),Action,PC,Mature,4.4,1845,83,7047,5,1863
+19542,Half-Life: Blue Shift,Action,PC,Mature,3.73,764,71,7037,2,768
+3740,FEZ,Action,PC,Everyone,4.0,1174,91,7037,2,1181
+1244,Darkest Dungeon,RPG,PC,Teen,4.17,1357,84,7025,8,1366
+21265,Half-Life: Opposing Force,Action,PC,Mature,3.86,750,0,7021,3,754
+4954,Castle Crashers,Action,PC,Teen,3.89,1219,84,7012,4,1225
+15859,Star Wars: Knights of the Old Republic,Action,PC,Mature,4.35,1475,88,7010,2,1481
+2572,DiRT Rally,Simulation,PC,Unrated,3.69,674,86,7009,4,676
+14348,Dying Light: The Following - Enhanced Edition,Action,PC,Unrated,4.13,1109,87,7005,17,1116
+865,Call of Duty: Black Ops,Action,PC,Mature,4.05,1872,81,6982,9,1891
+9475,Don't Starve,Indie,PC,Teen,3.85,1130,79,6946,4,1136
+857,Halo: The Master Chief Collection,Action,PC,Unrated,4.25,1095,85,6944,7,1101
+4639,Dragon Age: Origins,RPG,PC,Mature,4.39,1978,91,6937,7,1987
+3015,Chivalry: Medieval Warfare,Action,PC,Unrated,3.41,840,79,6886,4,844
+19384,The Binding of Isaac,Action,PC,Unrated,3.91,1191,84,6883,5,1201
+18241,DmC: Devil May Cry,Action,PC,Mature,4.02,1564,85,6854,6,1575
+3486,Syberia,Adventure,PC,Teen,3.94,799,82,6844,3,807
+6617,Quantum Break,Action,PC,Mature,3.91,1349,66,6825,6,1369
+4550,Dead Space 2,Action,PC,Mature,4.38,1407,87,6786,5,1416
+28623,Batman: Arkham City,Action,PC,Teen,4.41,2174,94,6754,20,2198
+16112,Sleeping Dogs: Definitive Edition,Action,PC,Mature,4.15,1186,76,6730,6,1200
+3932,The Bureau: XCOM Declassified,Action,PC,Unrated,3.05,658,66,6718,3,659
+5562,Fallout 3,Shooter,PC,Mature,4.08,1950,91,6708,4,1966
+58755,Devil May Cry 5,Action,PC,Mature,4.25,1542,88,6705,9,1574
+3771,Rayman Legends,Platformer,PC,Everyone 10+,4.16,1563,89,6694,5,1578
+3028,Beyond: Two Souls,Action,PC,Mature,3.81,1784,73,6680,4,1801
+492,Yakuza 0,Action,PC,Mature,4.36,1143,85,6677,8,1166
+29338,Days Gone,Action,PC,Mature,3.97,1398,74,6637,10,1431
+17875,Guacamelee! Super Turbo Championship Edition,Action,PC,Everyone 10+,3.55,824,86,6626,3,830
+1169,Mafia III,Action,PC,Mature,3.14,1378,62,6582,9,1391
+3842,Battlefield 4,Shooter,PC,Mature,3.95,1614,81,6572,6,1629
+7819,SUPERHOT,Action,PC,Teen,4.19,1550,82,6568,4,1571
+42187,The Sims 4,Strategy,PC,Teen,3.67,1158,67,6565,4,1169
+42,What Remains of Edith Finch,Adventure,PC,Teen,4.38,2038,89,6558,3,2065
+17126,Torchlight II,Action,PC,Teen,3.84,1073,88,6552,10,1080
+817974,Wallpaper Engine,Casual,PC,Unrated,4.05,261,0,6548,13,262
+1959,Goat Simulator,Action,PC,Unrated,3.18,1199,62,6530,3,1205
+5703,Uncharted 3: Drake's Deception,Action,PlayStation,Teen,4.37,1952,92,6497,12,1969
+21924,Call of Duty: WWII,Action,PC,Mature,3.55,1184,77,6493,6,1202
+28199,Ori and the Will of the Wisps,Action,PC,Everyone,4.41,1312,91,6471,11,1339
+3408,Hotline Miami 2: Wrong Number,Action,PC,Mature,4.29,1335,72,6458,7,1346
+19365,Homefront,Shooter,PC,Mature,2.96,819,70,6454,2,827
+3892,Sniper Elite V2,Action,PC,Mature,3.4,851,66,6447,4,855
+2623,Resident Evil 6,Action,PC,Mature,3.43,1281,67,6446,8,1296
+5159,Resident Evil 2 (1998),Action,PC,Mature,4.33,931,90,6430,13,934
+1774,Grim Fandango Remastered,Adventure,PC,Teen,4.0,907,84,6417,5,912
+2873,The Witness,Adventure,PC,Unrated,4.01,1285,87,6400,4,1299
+28559,Dragon Age: Inquisition,Action,PC,Mature,3.8,1562,86,6399,4,1581
+9609,Euro Truck Simulator 2,Simulation,PC,Everyone,4.12,915,79,6393,12,921
+2733,Broforce,Action,PC,Unrated,4.02,1317,83,6390,6,1331
+624,FTL: Faster Than Light,Strategy,PC,Everyone 10+,4.25,964,84,6389,6,970
+274762,The Outer Worlds,Action,PC,Unrated,3.85,1491,80,6388,8,1530
+11276,Call of Duty: Modern Warfare 3,Action,PC,Mature,3.79,1652,85,6378,8,1660
+9600,The Forest,Action,PC,Mature,3.74,936,0,6378,8,948
+22511,The Legend of Zelda: Breath of the Wild,Action,Nintendo,Everyone 10+,4.47,3190,97,6370,121,3255
+16209,Kingdom: Classic,Strategy,PC,Unrated,3.39,579,74,6338,4,579
+11686,POSTAL 2,Action,PC,Adults Only,3.91,1078,59,6337,4,1086
+58753,Forza Horizon 4,Racing,PC,Everyone,4.37,1652,90,6329,13,1668
+15834,The Walking Dead: Season 2,Action,PC,Mature,4.06,1477,80,6292,10,1486
+23322,Surviving Mars,Strategy,PC,Everyone 10+,3.47,471,75,6284,4,472
+58617,Borderlands 3,Action,PC,Mature,3.87,975,83,6250,11,993
+3371,Dark Souls II: Scholar of the First Sin,Action,PC,Mature,4.14,1223,79,6214,25,1229
+22781,Syberia 2,Adventure,PC,Teen,3.89,577,80,6208,5,579
+4440,Deus Ex: Human Revolution,Action,PC,Mature,4.37,1553,89,6199,17,1567
+16113,Sleeping Dogs,Action,PC,Mature,4.13,1331,81,6198,14,1342
+18336,Alan Wake's American Nightmare,Action,PC,Unrated,3.41,828,73,6181,3,833
+4101,Bayonetta,Action,PC,Mature,4.3,1160,90,6178,5,1171
+13194,To the Moon,Action,PC,Everyone,4.29,1143,81,6173,4,1154
+22121,Celeste,Indie,PC,Everyone 10+,4.37,1700,91,6172,6,1748
+16343,A Story About My Uncle,Adventure,PC,Everyone 10+,3.15,644,73,6162,3,650
+14446,Call of Duty: Black Ops II,Action,PC,Mature,3.96,1435,74,6154,5,1447
+752,SMITE,Action,PC,Unrated,3.05,802,83,6145,3,802
+45821,Frostpunk,Strategy,PC,Mature,4.19,1066,85,6141,6,1085
+20406,Team Fortress Classic,Action,PC,Unrated,2.92,387,0,6135,1,389
+306124,Borderlands Game of the Year Enhanced,Action,PC,Mature,3.8,1037,78,6127,3,1046
+2728,Tom Clancy’s The Division,Action,PC,Mature,3.7,1345,80,6120,27,1349
+15426,Black Mesa,Action,PC,Unrated,4.35,1079,86,6108,6,1095
+12756,"Warhammer 40,000: Space Marine",Action,PC,Adults Only,3.47,752,74,6101,5,755
+4123,Batman: Arkham Asylum,Action,PC,Teen,4.4,2335,91,6094,13,2362
+4094,Metal Gear Rising: Revengeance,Action,PC,Mature,4.25,1254,83,6092,6,1268
+4573,PAYDAY The Heist,Action,PC,Adults Only,3.35,782,76,6081,4,789
+2553,Ratchet & Clank,Action,PlayStation,Everyone 10+,4.05,1461,85,6064,18,1480
+58550,Ghost of Tsushima,Action,PC,Mature,4.41,1145,83,6057,0,1180
+42895,Assassin's Creed Syndicate,Action,PC,Mature,3.66,1516,74,6052,22,1537
+3631,inFAMOUS Second Son,Action,PlayStation,Teen,3.91,1645,80,6027,0,1659
+14512,Age of Wonders III,RPG,PC,Unrated,2.92,447,80,6026,4,448
+9966,Dead by Daylight,Action,PC,Mature,3.5,990,72,6020,10,1004
+30899,Mafia: The City of Lost Heaven,Action,PC,Mature,4.36,1313,88,6004,2,1325
+18614,Half-Life: Source,Action,PC,Mature,3.71,557,0,5996,1,561
+2597,LEGO The Lord of the Rings,Action,PC,Everyone 10+,3.56,622,80,5996,2,627
+2115,Overcooked,Simulation,PC,Everyone,4.07,1355,81,5967,4,1365
+17857,S.T.A.L.K.E.R.: Shadow of Chernobyl,Action,PC,Adults Only,4.27,1361,82,5965,3,1374
+9671,Rust,Action,PC,Mature,3.37,864,66,5950,15,870
+50778,A Way Out,Action,PC,Mature,4.12,1623,78,5937,6,1666
+28152,STAR WARS Battlefront II,Action,PC,Teen,3.58,1366,74,5931,4,1380
+13247,Human: Fall Flat,Action,PC,Everyone,3.83,1031,70,5913,5,1042
+13913,Deus Ex: Game of the Year Edition,Action,PC,Mature,4.12,576,90,5907,1,576
+46956,Doki Doki Literature Club!,Adventure,PC,Unrated,4.06,1297,78,5888,3,1328
+3209,Until Dawn,Action,PC,Mature,4.1,1751,79,5884,14,1777
+2518,Max Payne,Action,PC,Mature,4.45,2058,89,5876,2,2079
+19569,Hitman: Blood Money,Action,PC,Mature,4.31,1042,82,5865,2,1047
+14962,Dark Souls: Prepare To Die Edition,Action,PC,Mature,4.37,1265,85,5850,14,1271
+11312,The Long Dark,Action,PC,Teen,3.91,881,76,5848,5,890
+750,FINAL FANTASY XV,RPG,PC,Teen,3.87,1424,82,5835,5,1442
+18183,Company of Heroes,Strategy,PC,Unrated,3.68,564,93,5818,7,570
+5193,Oddworld: Abe's Oddysee,Action,PC,Teen,3.55,561,85,5763,3,563
+250,The Binding of Isaac: Rebirth,Action,PC,Mature,4.32,1167,86,5760,31,1177
+14016,Tropico 4,Strategy,PC,Teen,3.51,511,78,5754,4,511
+670682,Counter-Strike: Condition Zero Deleted Scenes,Shooter,PC,Mature,2.88,178,0,5744,1,180
+274480,Mortal Kombat 11,Action,PC,Mature,3.97,1144,82,5738,9,1160
