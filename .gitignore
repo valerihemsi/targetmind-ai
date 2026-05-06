@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+*.pyc
+data/customers.csv
+data/customers_cleaned.csv
+data/customers_scored.csv
+data/final_targets.csv
+data/optimal_targets.csv
+data/column_mapping.json
+.env
+*.DS_Store
