@@ -84,6 +84,55 @@ def _demographic_shift(before: pd.DataFrame, after: pd.DataFrame, col: str) -> d
         "max_kayma": round(float(shift.abs().max()), 1) if not shift.empty else 0,
     }
 
+def _per_row_provenance(df: pd.DataFrame, metric_cols: list, weights: dict) -> tuple:
+    """
+    Her müşteri için bu satırın aldığı skorun **hangi metriklere borçlu**
+    olduğunu üretir. CSV'ye iki kolon olarak yazılır:
+      - dominant_metrik: en yüksek katkı veren metrik adı
+      - secim_gerekce: top-2 metrik + bu kişinin o metriklerde hangi
+        yüzdelikte olduğu (Q70+ = Yüksek, Q40-69 = Orta, Q<40 = Düşük)
+
+    Bu, ajanın CSV üzerinde "neden bu skor?" sorusunu satır satır
+    cevaplayabilmesini sağlar — şeffaf, gerekçeli skorlama.
+    """
+    if not metric_cols:
+        empty = pd.Series([""] * len(df), index=df.index)
+        return empty, empty
+
+    def norm(s):
+        mn, mx = s.min(), s.max()
+        return (s - mn) / (mx - mn + 1e-9)
+
+    n = len(metric_cols)
+    contribs = pd.DataFrame(
+        {c: norm(df[c]) * weights.get(c, 1.0 / n) for c in metric_cols},
+        index=df.index,
+    )
+    quantiles = pd.DataFrame(
+        {c: df[c].rank(pct=True) * 100 for c in metric_cols},
+        index=df.index,
+    )
+    dominant = contribs.idxmax(axis=1)
+
+    def label_for(q: float) -> str:
+        if q >= 70:
+            return "Yüksek"
+        if q >= 40:
+            return "Orta"
+        return "Düşük"
+
+    def gerekce(idx) -> str:
+        top2 = contribs.loc[idx].nlargest(2)
+        parts = []
+        for metric in top2.index:
+            q = float(quantiles.loc[idx, metric])
+            parts.append(f"{label_for(q)} {metric} (Q{int(round(q))})")
+        return " · ".join(parts)
+
+    gerekceler = pd.Series([gerekce(i) for i in df.index], index=df.index)
+    return dominant, gerekceler
+
+
 def _bias_contribution_score(max_kayma: float, max_skor_farki: float = 0) -> float:
     """0-1 arası **varsayım hassasiyet skoru**.
 
@@ -194,6 +243,14 @@ def clean_data(rules_json: str = "") -> str:
         "Eksik değerler tipik kullanıcıya benzer (medyan/mod dolgu). "
         "Alternatif: 'Bilinmiyor' kategorisi ile eksik bilgiyi sinyal olarak tut."
     )
+    oz_degerlendirme["neden_optimal"] = (
+        f"Veri {report['baslangic_satir']} → {len(df)} kayıta indi; "
+        f"{report['baslangic_satir'] - len(df)} satır temizlendi. "
+        "Alt akış ajanları artık negatif harcama, aykırı yaşlar, "
+        "format tutarsızlıkları ve eksik değerlerden gelen **yanlış sinyali** "
+        "almıyor. Bu, daha objektif analiz için zemin oluşturuyor — "
+        "ancak temizleme yönteminin kendisi bir varsayım kaynağı olduğunu kabul ediyorum."
+    )
     oz_degerlendirme["sonuc"] = (
         f"⚠ Temizleme yöntemim demografik dağılımı {max_kayma_genel:.1f} puan kaydırdı. "
         "Karar metodolojiye bağımlı — alternatif yöntemle çıktı belirgin farklı olur. "
@@ -278,6 +335,14 @@ def segmentation_analysis(_: str = "") -> str:
         "Eğer ham veri kendisi bir örnekleme bias'ı taşıyorsa, "
         "buradaki temsil farkları gerçek değil artefakttır."
     )
+    oz["neden_optimal"] = (
+        f"{len(df)} kaydı segmentleri + demografik dağılımı + metrik "
+        f"istatistikleri açısından **görünür** hale getirdim. Skorlama ajanı "
+        "artık hangi segmentin değerli olduğunu tahmin etmek yerine veriden okuyacak. "
+        "Demografik temsil farkları (Maks: {} puan) alt akış için **şeffaf bilgi**.".format(
+            f"{max_temsil_farki:.1f}"
+        )
+    )
     oz["sonuc"] = (
         f"ⓘ Maksimum demografik temsil farkı: {max_temsil_farki:.1f} puan. "
         "Bu fark gerçek pazar yapısı olabilir; ancak ham veri seçim sürecinin "
@@ -338,6 +403,10 @@ def score_customers(weights_json: str = "") -> str:
         kullanilan[col] = round(agirlik, 4)
 
     df["potansiyel_skor"] = (skor * 100).round(2)
+
+    # Her satıra "neden bu skor?" gerekçesi (CSV'de görünür)
+    df["dominant_metrik"], df["secim_gerekce"] = _per_row_provenance(df, metric_cols, w)
+
     df["skor_segmenti"] = pd.cut(
         df["potansiyel_skor"],
         bins=[0, 30, 50, 70, 100],
@@ -380,6 +449,12 @@ def score_customers(weights_json: str = "") -> str:
         f"En etkili metrik '{oz.get('en_riskli_agirlik','—').split(' ')[0] if oz.get('en_riskli_agirlik') else '—'}'. "
         "Eşit ağırlık denemek bu varsayımdan ne kadar uzaklaştığımı gösterir."
     )
+    oz["neden_optimal"] = (
+        f"Her satıra 0-100 potansiyel skor + 'dominant_metrik' + 'secim_gerekce' kolonu "
+        f"verdim. Yüksek+Prime ({int((df['skor_segmenti']=='Yüksek').sum() + (df['skor_segmenti']=='Prime').sum())} kişi) "
+        "doğrudan hedeflenebilir, neden seçildikleri her satırda görünür. "
+        "Veri analizi artık 'rastgele skor sırası' değil, **gerekçeli önceliklendirme**."
+    )
     oz["sonuc"] = (
         f"ⓘ Ağırlık seçimim demografik gruplar arası {max_fark:.1f} puanlık skor farkı üretti. "
         "Bu fark gerçek harcama davranış sinyali olabilir veya benim metodolojimden "
@@ -392,8 +467,23 @@ def score_customers(weights_json: str = "") -> str:
     )
 
     id_col = mapping.get("id_col", "")
-    top_cols = ([id_col] if id_col and id_col in df.columns else []) + demo_cols + metric_cols + ["potansiyel_skor"]
+    top_cols = ([id_col] if id_col and id_col in df.columns else []) + demo_cols + metric_cols + ["potansiyel_skor", "dominant_metrik", "secim_gerekce"]
     top_cols = list(dict.fromkeys([c for c in top_cols if c in df.columns]))
+
+    # "Objektif kazanım" karşılaştırması için snapshot — final ajan bunu
+    # son skorlamayla karşılaştırarak hangi müşterilerin yöntem değişikliğinden
+    # etkilendiğini tespit eder
+    snapshot = {
+        "agirliklar": kullanilan,
+        "max_skor": float(df["potansiyel_skor"].max()),
+        "min_skor": float(df["potansiyel_skor"].min()),
+        "ort_skor": round(float(df["potansiyel_skor"].mean()), 2),
+        "skor_dagilimi": df["skor_segmenti"].astype(str).value_counts().to_dict(),
+        "top_30_id": (
+            df.nlargest(30, "potansiyel_skor")[id_col].tolist()
+            if id_col and id_col in df.columns else []
+        ),
+    }
 
     result = {
         "kullanilan_agirliklar": kullanilan,
@@ -403,7 +493,11 @@ def score_customers(weights_json: str = "") -> str:
         "top_10": df.nlargest(10, "potansiyel_skor")[top_cols].fillna("—").to_dict(orient="records"),
     }
 
-    _log_agent("Skorlama", {"kullanilan_agirliklar": kullanilan, "oz_degerlendirme": oz})
+    _log_agent("Skorlama", {
+        "kullanilan_agirliklar": kullanilan,
+        "oz_degerlendirme": oz,
+        "ilk_skorlama_snapshot": snapshot,
+    })
     return _dumps(result)
 
 
@@ -484,6 +578,7 @@ def detect_proxy_and_bias(_: str = "") -> str:
             except Exception:
                 pass
 
+    yuksek_risk_sayisi = sum(1 for p in proxy_analizi if p["risk"] == "YÜKSEK")
     oz = {
         "gozden_kacirilan_iliskiler": gozden_kacirilanlar,
         "bias_katki_skoru": _bias_contribution_score(len(proxy_analizi) * 2),
@@ -492,6 +587,12 @@ def detect_proxy_and_bias(_: str = "") -> str:
             "Ama bu metriklerin hassas demografik özelliklerle güçlü "
             "korelasyonu varsa, ben aslında dolaylı olarak demografi üzerinden "
             "skor verebilirim — buna fark etmeden."
+        ),
+        "neden_optimal": (
+            f"{len(proxy_analizi)} proxy ilişkisi ifşa edildi ({yuksek_risk_sayisi} yüksek riskli). "
+            "Skorlama ajanının metriklerinin hangi yolla dolaylı demografik temsil "
+            "yaptığını eleştirmenin **görmesini** sağladım. Bu bilgi olmadan skorun "
+            "'objektif' iddiası boştur."
         ),
         "sonuc": (
             f"ⓘ {len([p for p in proxy_analizi if p['risk']=='YÜKSEK'])} yüksek riskli proxy "
@@ -684,6 +785,7 @@ def corrected_scoring(_: str = "") -> str:
     # Yeni skoru hesapla
     skor = sum(norm(df[c]) * yeni_agirliklar.get(c, 1.0/len(metric_cols)) for c in metric_cols)
     df["potansiyel_skor"] = (skor * 100).round(2)
+    df["dominant_metrik"], df["secim_gerekce"] = _per_row_provenance(df, metric_cols, yeni_agirliklar)
     df["skor_segmenti"] = pd.cut(
         df["potansiyel_skor"], bins=[0,30,50,70,100],
         labels=["Düşük","Orta","Yüksek","Prime"]
@@ -755,10 +857,45 @@ def corrected_scoring(_: str = "") -> str:
         ),
     }
 
+    # Son skorlama snapshot'u — final ajan ilk_skorlama_snapshot ile karşılaştırır
+    id_col = mapping.get("id_col", "")
+    son_snapshot = {
+        "agirliklar": yeni_agirliklar,
+        "max_skor": float(df["potansiyel_skor"].max()),
+        "min_skor": float(df["potansiyel_skor"].min()),
+        "ort_skor": round(float(df["potansiyel_skor"].mean()), 2),
+        "skor_dagilimi": df["skor_segmenti"].astype(str).value_counts().to_dict(),
+        "top_30_id": (
+            df.nlargest(30, "potansiyel_skor")[id_col].tolist()
+            if id_col and id_col in df.columns else []
+        ),
+    }
+
     _log_agent("Düzeltilmiş Skorlama", {
         "ozet": result["ozet"],
         "karar_kirilganligi": karar_kirilganligi,
         "oncesi_sonrasi": karsilastirma,
+        "son_skorlama_snapshot": son_snapshot,
+        "oz_degerlendirme": {
+            "bias_katki_skoru": min(abs(ortalama_delta) / 5.0, 1.0),
+            "varsayim": (
+                "İlk skorlama ağırlık tercihine bağımlıydı; alternatif eşit "
+                "ağırlıkla karşılaştırarak kararın ne kadarının yöntemden, "
+                "ne kadarının veriden geldiğini ölçtüm."
+            ),
+            "sonuc": result["ozet"],
+            "neden_optimal": (
+                f"İki yöntem yan yana koyuldu. Karar kırılganlığı: {karar_kirilganligi}. "
+                + (
+                    "Final kitle, alternatif yöntemle aynı kişileri içerirse skor robust — "
+                    "yöntem tercihim sonucu önemsiz hale geliyor."
+                    if karar_kirilganligi == "ROBUST" else
+                    "Yöntem değişikliği farklı müşterileri öne çıkarıyor — bu fark "
+                    "objektif kazanım raporunda her bir değişen müşteri için "
+                    "şeffaf olarak gösterilecek."
+                )
+            ),
+        },
     })
     return _dumps(result)
 
@@ -803,19 +940,30 @@ def build_final_and_report(criteria_json: str = "") -> str:
     optimal = final.nlargest(20, "gelecek_potansiyel")
     optimal.to_csv("data/optimal_targets.csv", index=False)
 
-    # ── SÜREÇ RAPORU ──────────────────────────────────────────
+    # ── SÜREÇ RAPORU — ajan anlatıları + objektif kazanım ────
     surec = {
-        "ajan_ozeti": [],
+        "ajan_ozeti": [],            # geriye dönük (eski UI kullanabilir)
+        "ajan_anlatilari": [],       # yeni, zenginleştirilmiş anlatım
         "toplam_bias_azalmasi": log.get("Düzeltilmiş Skorlama", {}).get("toplam_bias_azalmasi_puan", 0),
         "en_etkili_duzeltme": "",
     }
     for ajan_adi, ajan_log in log.items():
         oz = ajan_log.get("oz_degerlendirme", {})
+        # Eski format (geriye dönük)
         surec["ajan_ozeti"].append({
             "ajan": ajan_adi,
             "ozet": ajan_log.get("ozet", ""),
             "bias_katki_skoru": oz.get("bias_katki_skoru", 0),
             "fark_ettigi_bias": oz.get("sonuc", ""),
+        })
+        # Yeni zengin format — her ajanın anlatımı
+        surec["ajan_anlatilari"].append({
+            "ajan": ajan_adi,
+            "ne_yapti": ajan_log.get("ozet", ""),
+            "ifsa_ettigi_varsayim": oz.get("varsayim", oz.get("ifsa_edilen_varsayim", "—")),
+            "varsayim_hassasiyeti": oz.get("bias_katki_skoru", 0),
+            "fark_ettigi": oz.get("sonuc", ""),
+            "neden_optimal": oz.get("neden_optimal", "—"),
         })
 
     duzeltme_log = log.get("Düzeltilmiş Skorlama", {}).get("oncesi_sonrasi", {})
@@ -832,6 +980,47 @@ def build_final_and_report(criteria_json: str = "") -> str:
             "Bu boyut için iki yöntemin sonucu en uzakta; karar burada en "
             "kırılgan."
         )
+
+    # ── OBJEKTİF KAZANIM — ilk skorlama vs son skorlama karşılaştırması ──
+    # İlk yöntem (ağırlıklı) kim seçti, alternatif yöntem (eşit) kim seçti,
+    # değişim nasıl, hangi karar yöntemden bağımsız?
+    ilk_snap = log.get("Skorlama", {}).get("ilk_skorlama_snapshot", {})
+    son_snap = log.get("Düzeltilmiş Skorlama", {}).get("son_skorlama_snapshot", {})
+
+    objektif_kazanim = None
+    if ilk_snap and son_snap:
+        ilk_top30 = set(ilk_snap.get("top_30_id", []))
+        son_top30 = set(son_snap.get("top_30_id", []))
+        ortak = ilk_top30 & son_top30
+        yeni_giren = son_top30 - ilk_top30
+        ayrilan   = ilk_top30 - son_top30
+        toplam_ilk = len(ilk_top30)
+        karar_robustlugu = round(len(ortak) / max(toplam_ilk, 1) * 100, 1)
+
+        objektif_kazanim = {
+            "ilk_yontem_ozet": {
+                "agirliklar": ilk_snap.get("agirliklar", {}),
+                "ort_skor":   ilk_snap.get("ort_skor", 0),
+                "top30_sayisi": toplam_ilk,
+            },
+            "alternatif_yontem_ozet": {
+                "agirliklar": son_snap.get("agirliklar", {}),
+                "ort_skor":   son_snap.get("ort_skor", 0),
+                "top30_sayisi": len(son_top30),
+            },
+            "iki_yontemde_de_top30": sorted(list(ortak)),
+            "sadece_ilk_yontemde": sorted(list(ayrilan)),
+            "sadece_alternatifte": sorted(list(yeni_giren)),
+            "karar_robustlugu_yuzde": karar_robustlugu,
+            "yorum": (
+                f"Top-30 müşterinin %{karar_robustlugu}'ı iki farklı ağırlık "
+                f"yöntemiyle de seçildi → bu kişiler **yöntemden bağımsız** "
+                f"olarak değerli (gerçek sinyal). Geri kalan %{100 - karar_robustlugu} "
+                f"({len(yeni_giren) + len(ayrilan)} kişi) yöntem seçimine duyarlı — "
+                "kararın hangi yönüyle bu kişiyi seçeceğin senin objektiflik tercihine bağlı."
+            ),
+        }
+        surec["objektif_kazanim"] = objektif_kazanim
 
     # ── OPTİMAL KİTLE RAPORU ──────────────────────────────────
     display_cols = ([id_col] if id_col and id_col in final.columns else []) + demo_cols + metric_cols + ["potansiyel_skor", "gelecek_potansiyel"]
@@ -859,9 +1048,19 @@ def build_final_and_report(criteria_json: str = "") -> str:
         "final_hedef_kitle": len(final),
         "elenme_orani_yuzde": round((1-len(final)/len(df))*100, 1),
         "skor_ortalama": round(float(final["potansiyel_skor"].mean()), 2) if len(final) > 0 else 0,
+        # Yeni: objektif kazanım üst seviyede görünür (UI doğrudan okur)
+        "objektif_kazanim": objektif_kazanim,
+        # Yeni: zengin ajan anlatıları üst seviyede görünür
+        "ajan_anlatilari": surec.get("ajan_anlatilari", []),
     }
 
-    _log_agent("Final Optimizasyon", {"final_kitle": len(final), "surec_ozeti": surec["ajan_ozeti"]})
+    _log_agent("Final Optimizasyon", {
+        "final_kitle": len(final),
+        "surec_ozeti": surec["ajan_ozeti"],
+        "objektif_kazanim_ozet": (
+            objektif_kazanim.get("yorum", "") if objektif_kazanim else ""
+        ),
+    })
     return _dumps(result)
 
 
