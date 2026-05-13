@@ -849,3 +849,135 @@ def counterfactual_test(scenarios_json: str = "") -> str:
         "karsilastirma": karsilastirma_satirlari,
     })
     return _dumps(result)
+
+
+# ══════════════════════════════════════════════════════════════
+#  AJAN 6.5 — İTERATİF ÖZ-DÜZELTME LOOP'U
+#  (Critic + corrected_scoring döngüsünü bias eşik altına inene kadar
+#   ya da max_iterations'a kadar tekrarlar. "Öz-farkındalıklı" iddianın
+#   gerçekten kapatıldığı tek pas yerine tekrarlı düzeltme akışı.)
+# ══════════════════════════════════════════════════════════════
+
+# Demografik fark puanı eşiği — bunun altına inilirse loop biter
+BIAS_FARK_ESIGI = 5.0
+
+
+def _max_demographic_gap(df: pd.DataFrame, demo_cols: list, score_col: str = "potansiyel_skor") -> float:
+    """Bir DataFrame'deki en yüksek demografik skor farkını döner."""
+    if score_col not in df.columns:
+        return 0.0
+    max_fark = 0.0
+    for col in demo_cols:
+        if col not in df.columns:
+            continue
+        try:
+            g = df.groupby(col)[score_col].mean()
+            fark = float(g.max() - g.min())
+            if fark > max_fark:
+                max_fark = fark
+        except Exception:
+            pass
+    return round(max_fark, 2)
+
+
+@tool("İteratif Öz-Düzeltme Loop")
+def iterative_correction(max_iterations: str = "3") -> str:
+    """
+    Çapraz değerlendirme + düzeltilmiş skorlama döngüsünü, en yüksek
+    demografik skor farkı 5 puanın altına inene kadar veya max_iterations
+    sayısına ulaşana kadar tekrarlar.
+
+    Her turda:
+      1. inter_agent_critique → yeni düzeltme önerileri (log'a yazılır)
+      2. corrected_scoring → öneriyi uygula, customers_scored.csv güncellenir
+      3. Max demografik fark ölç → eşik altına indiyse erken sonlandır
+
+    Default: max 3 tur.
+    """
+    try:
+        max_iter = int(max_iterations.strip()) if max_iterations.strip() else 3
+    except Exception:
+        max_iter = 3
+    max_iter = min(max(max_iter, 1), 5)
+
+    mapping   = _load_mapping()
+    demo_cols = mapping.get("demographic_cols", [])
+
+    # Loop öncesi durum
+    try:
+        df_before = _load(SCORED_PATH)
+        baslangic_fark = _max_demographic_gap(df_before, demo_cols)
+    except Exception:
+        baslangic_fark = 0.0
+
+    iterations = []
+    son_max_fark = baslangic_fark
+    erken_sonlanma = False
+
+    for i in range(max_iter):
+        # 1. Eleştirmen yeni öneri üretsin
+        try:
+            critic_out = json.loads(inter_agent_critique.run(""))
+        except Exception as e:
+            critic_out = {"hata": str(e)}
+
+        oneri = critic_out.get("duzeltme_onerileri", {})
+
+        # 2. Düzeltmeyi uygula
+        try:
+            corr_out = json.loads(corrected_scoring.run(""))
+        except Exception as e:
+            corr_out = {"hata": str(e)}
+
+        # 3. Max demografik fark
+        try:
+            df_after = _load(SCORED_PATH)
+            son_max_fark = _max_demographic_gap(df_after, demo_cols)
+        except Exception:
+            son_max_fark = son_max_fark
+
+        iterations.append({
+            "tur": i + 1,
+            "duzeltme_oneri_sayisi": len(oneri),
+            "duzeltme_oneri_ozet": list(oneri.keys()),
+            "uygulanan_agirliklar": corr_out.get("uygulanan_agirliklar", {}),
+            "iyilesme_puan": corr_out.get("toplam_bias_azalmasi_puan", 0),
+            "max_demografik_fark": son_max_fark,
+            "esik_altinda": son_max_fark < BIAS_FARK_ESIGI,
+        })
+
+        if son_max_fark < BIAS_FARK_ESIGI:
+            erken_sonlanma = True
+            break
+
+    sonuc_durumu = (
+        "✓ CONVERGED — bias eşiği altına indirildi"
+        if erken_sonlanma else
+        f"⚠ MAX_ITER reached — {max_iter} tur sonunda bias {son_max_fark:.1f} puan, eşik {BIAS_FARK_ESIGI}"
+    )
+
+    toplam_iyilesme = round(baslangic_fark - son_max_fark, 2)
+
+    result = {
+        "max_iter": max_iter,
+        "bias_esigi": BIAS_FARK_ESIGI,
+        "baslangic_max_fark": baslangic_fark,
+        "son_max_fark": son_max_fark,
+        "toplam_iyilesme_puan": toplam_iyilesme,
+        "tur_sayisi": len(iterations),
+        "erken_sonlandi": erken_sonlanma,
+        "iterasyonlar": iterations,
+        "sonuc": sonuc_durumu,
+        "ozet": (
+            f"{len(iterations)} tur sonra max demografik fark "
+            f"{baslangic_fark:.1f} → {son_max_fark:.1f} puan ({toplam_iyilesme:+.1f}). {sonuc_durumu}"
+        ),
+    }
+
+    _log_agent("İteratif Düzeltme", {
+        "tur_sayisi": len(iterations),
+        "baslangic": baslangic_fark,
+        "son": son_max_fark,
+        "erken_sonlandi": erken_sonlanma,
+    })
+    return _dumps(result)

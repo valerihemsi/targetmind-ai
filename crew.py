@@ -21,6 +21,7 @@ from tools.data_tools import (
     corrected_scoring,
     build_final_and_report,
     counterfactual_test,
+    iterative_correction,
 )
 
 llm = LLM(model="anthropic/claude-sonnet-4-6")
@@ -134,21 +135,21 @@ critic_agent = Agent(
 )
 
 corrected_scoring_agent = Agent(
-    role="Düzeltilmiş Skorlama Uzmanı",
+    role="İteratif Düzeltme Uzmanı",
     goal=(
-        "Eleştirmenin önerilerini ve counterfactual karşılaştırmalarını uygulayarak "
-        "skorlamayı yeniden hesapla. Öncesi/sonrası demografik bias farkını net "
-        "olarak raporla. Düzeltmenin gerçekten işe yarayıp yaramadığını sayısal "
-        "olarak göster."
+        "Eleştirmenin önerilerini uygulayarak skorlamayı düzelt, sonucun yeterli "
+        "olmadığı durumda eleştirmen + düzeltme döngüsünü tekrarla. Sistem "
+        "demografik bias eşiğinin altına inene ya da maksimum tur sayısına "
+        "ulaşana kadar iteratif çalış. Her turun sonucunu sayısal olarak göster."
     ),
     backstory=(
         "Sen geri besleme döngülerinin gerçek değerini bilen bir optimizasyon "
-        "uzmanısın. Bir sistemin kendini düzeltebilmesi için öncesi/sonrası "
-        "karşılaştırmanın somut olması gerektiğini bilirsin. Düzeltme önerilerini "
-        "körü körüne uygulamaz, etkilerini ölçer ve gerekirse eleştirmene "
-        "geri bildirim verirsin."
+        "uzmanısın. Bir sistemin kendini düzeltebilmesi için tek bir pasın çoğu "
+        "zaman yetmediğini, ardışık turların gerektiğini bilirsin. Her düzeltme "
+        "turunu ölçer, bias hâlâ eşik üstündeyse eleştirmenden yeni öneri "
+        "isteyip yeniden uygularsın — bir convergence noktası bulana kadar."
     ),
-    tools=[corrected_scoring],
+    tools=[corrected_scoring, iterative_correction],
     llm=llm,
     verbose=True,
     allow_delegation=False,
@@ -279,17 +280,23 @@ task_critique = Task(
 
 task_corrected = Task(
     description=(
-        "Eleştirmenin önerdiği düzeltme kuralını uygula.\n\n"
-        "1. `Düzeltilmiş Skorlama Ajanı` aracını çalıştır.\n"
-        "2. Aracın `oncesi_sonrasi` karşılaştırmasında her demografik kolon için "
-        "iyileşme puanını yorumla.\n"
-        "3. `toplam_bias_azalmasi_puan` 0'ın altındaysa düzeltmenin neden iş "
-        "görmediğini açıkla.\n\n"
-        "Çıktı: Düzeltilmiş skorlama raporu + iyileşme analizi."
+        "Eleştirmenin önerdiği düzeltmeyi uygula ve gerekirse iteratif tekrar et.\n\n"
+        "1. `İteratif Öz-Düzeltme Loop` aracını çalıştır.\n"
+        "   - Default 3 tura kadar critic → corrected_scoring döngüsü yapar.\n"
+        "   - Max demografik fark 5 puanın altına inerse erken sonlandırır.\n"
+        "   - max_iterations parametresi ile sınırı değiştirebilirsin (1-5).\n"
+        "2. Aracın çıktısındaki `iterasyonlar` listesini yorumla:\n"
+        "   - Her turda max demografik fark nasıl değişti?\n"
+        "   - Hangi turda eşiğin altına inildi (veya inilemedi)?\n"
+        "   - `erken_sonlandi` true mu, max iter'a mı çarpıldı?\n"
+        "3. `son_max_fark` hâlâ eşik üstündeyse: hangi yapısal sınırın "
+        "convergence'i engellediğini açıkla (örn. tek alternatif öneri 'eşit "
+        "ağırlık', daha radikal bir müdahale gerekebilir).\n\n"
+        "Çıktı: İteratif düzeltme raporu + convergence analizi."
     ),
     expected_output=(
-        "Uygulanan ağırlıklar, her demografik kolon için öncesi/sonrası fark, "
-        "iyileşme yüzdesi ve toplam_bias_azalmasi_puan ile sözel yorum."
+        "Tur sayısı, başlangıç/son max demografik fark, her tur için iyileşme "
+        "puanı ve uygulanan ağırlıklar, convergence durumu (✓/⚠) ile sözel yorum."
     ),
     agent=corrected_scoring_agent,
     context=[task_critique],
