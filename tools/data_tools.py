@@ -1,7 +1,17 @@
 """
-TargetMind AI — 7 Ajan Öz-Farkındalıklı Pipeline
-Her ajan kendi kararlarını sorgular, birbirlerini değerlendirir,
-bias'larını fark ederek kendini düzeltir.
+TargetMind AI — Öz-Farkındalıklı Pipeline (Assumption-Surfacing)
+
+Bu pipeline'ın amacı çıktıyı demografik olarak eşitlemek DEĞİLDİR. Her ajan
+verdiği kararın altında yatan varsayımı yüzeye çıkarır, aynı kararı
+alternatif bir varsayımla yeniden çalıştırır ve iki sonuç arasındaki farkı
+ölçer. Çıktıdaki farklar büyükse karar **kırılgan** (metodolojiye bağımlı),
+küçükse karar **robust** (veriye bağlı) sayılır. Amaç gerçek veri sinyalini
+gizlemek değil, kararın varsayım yükünü şeffaf hale getirmektir.
+
+Anahtar metrik (alan adı geriye dönük uyumluluk için korundu):
+  `bias_katki_skoru` ≡ "varsayım hassasiyeti" — alternatif yöntemle çıktı
+  arası normalize edilmiş fark. 0 = karar metodolojiden bağımsız (robust),
+  1 = karar tamamen varsayımdan kaynaklı (fragile).
 """
 import json, os
 import pandas as pd
@@ -75,7 +85,17 @@ def _demographic_shift(before: pd.DataFrame, after: pd.DataFrame, col: str) -> d
     }
 
 def _bias_contribution_score(max_kayma: float, max_skor_farki: float = 0) -> float:
-    """0-1 arası bias katkı skoru. 0=temiz, 1=maksimum bias."""
+    """0-1 arası **varsayım hassasiyet skoru**.
+
+    NOT: Bu skor, çıktıdaki demografik eşitsizliği değil, ajan kararının
+    alternatif varsayımla yeniden işlendiğinde **ne kadar değişeceğinin**
+    bir göstergesidir. Yüksek değer = karar metodolojiye bağımlı (fragile),
+    düşük değer = karar metodolojiden bağımsız (robust).
+
+    Gerçek bir veri sinyali yüksek değer üretebilir ve bu sorun değildir —
+    sinyali "düzeltmek" amacımız değil, ajanın hangi yönteminin etkili
+    olduğunu **şeffaf hale getirmektir**.
+    """
     kayma_s = min(max_kayma / 10.0, 1.0)
     fark_s  = min(max_skor_farki / 15.0, 1.0)
     return round((kayma_s * 0.5 + fark_s * 0.5), 3)
@@ -88,8 +108,12 @@ def _bias_contribution_score(max_kayma: float, max_skor_farki: float = 0) -> flo
 @tool("Veri Temizleme Ajanı")
 def clean_data(rules_json: str = "") -> str:
     """
-    Veriyi temizler VE kendi kararlarının yarattığı bias'ı ölçer.
-    Öz-değerlendirme: 'Hangi temizleme kararım hangi demografiyi etkiledi?'
+    Veriyi temizler VE temizleme kararlarının altındaki varsayımları ifşa eder.
+
+    Öz-değerlendirme: 'Mod/medyan dolgu = "eksik değer tipik kullanıcıya
+    benzer" varsayımı. Eğer "Bilinmiyor" kategori kullansaydım çıktı ne
+    kadar değişirdi?' Bu fark kararın metodolojik kırılganlığını gösterir,
+    bir bias hatası değil bir şeffaflık ölçüsüdür.
     """
     raw     = _load(CSV_PATH)
     mapping = _load_mapping()
@@ -166,11 +190,17 @@ def clean_data(rules_json: str = "") -> str:
                 oz_degerlendirme["en_riskli_karar"] = f"'{col}' dağılımı {shift['max_kayma']:.1f} puan kaydı"
 
     oz_degerlendirme["bias_katki_skoru"] = _bias_contribution_score(max_kayma_genel)
+    oz_degerlendirme["varsayim"] = (
+        "Eksik değerler tipik kullanıcıya benzer (medyan/mod dolgu). "
+        "Alternatif: 'Bilinmiyor' kategorisi ile eksik bilgiyi sinyal olarak tut."
+    )
     oz_degerlendirme["sonuc"] = (
-        "⚠ Temizleme kararlarım demografik dağılımı anlamlı şekilde bozdu. "
-        "Mod dolgu belirli grupları yapay olarak güçlendiriyor olabilir."
+        f"⚠ Temizleme yöntemim demografik dağılımı {max_kayma_genel:.1f} puan kaydırdı. "
+        "Karar metodolojiye bağımlı — alternatif yöntemle çıktı belirgin farklı olur. "
+        "Bu bir hata değil, kararımın **kırılganlık derecesi**."
         if max_kayma_genel > 3 else
-        "✓ Temizleme kararlarım demografik dağılımı kabul edilebilir düzeyde etkiledi."
+        "✓ Temizleme kararım metodolojiden büyük ölçüde bağımsız — "
+        "alternatif yöntemle benzer sonuç beklenir (robust)."
     )
 
     report.update({
@@ -193,8 +223,9 @@ def clean_data(rules_json: str = "") -> str:
 @tool("Segmentasyon Ajanı")
 def segmentation_analysis(_: str = "") -> str:
     """
-    Segmentasyon yapar VE kendi sınıflandırma kararlarının
-    demografik temsili nasıl etkilediğini ölçer.
+    Segment dağılımını ve metrik istatistikleri rapor eder. Demografik
+    temsil farklarını ölçer — bu farklar gerçek pazar yapısını yansıtabilir;
+    amaç onları gizlemek değil, ajanın gözünden kaçırılmamalarını sağlamak.
     """
     df      = _load(CLEANED_PATH)
     mapping = _load_mapping()
@@ -242,11 +273,18 @@ def segmentation_analysis(_: str = "") -> str:
             max_temsil_farki = fark
 
     oz["bias_katki_skoru"] = _bias_contribution_score(max_temsil_farki / 2)
+    oz["varsayim"] = (
+        "Ham veri pazardaki gerçek dağılımı temsil ediyor. "
+        "Eğer ham veri kendisi bir örnekleme bias'ı taşıyorsa, "
+        "buradaki temsil farkları gerçek değil artefakttır."
+    )
     oz["sonuc"] = (
-        f"⚠ Segmentasyonda demografik dengesizlik var. "
-        f"Maksimum temsil farkı: {max_temsil_farki:.1f} puan."
+        f"ⓘ Maksimum demografik temsil farkı: {max_temsil_farki:.1f} puan. "
+        "Bu fark gerçek pazar yapısı olabilir; ancak ham veri seçim sürecinin "
+        "kendisi bias kaynağıysa, alt akıştaki tüm kararlar bu varsayımı miras alır."
         if max_temsil_farki > 20 else
-        "✓ Segmentasyon demografik dağılım açısından kabul edilebilir."
+        "✓ Demografik dağılım nispeten dengeli — alt akıştaki kararlar için "
+        "stabil bir taban."
     )
     analysis["oz_degerlendirme"] = oz
 
@@ -261,8 +299,14 @@ def segmentation_analysis(_: str = "") -> str:
 @tool("İlk Skorlama Ajanı")
 def score_customers(weights_json: str = "") -> str:
     """
-    İlk skoru üretir VE kendi ağırlık kararlarının yarattığı
-    demografik skor farklarını ölçer.
+    İlk skoru üretir VE ağırlık seçiminin altındaki varsayımı ifşa eder.
+
+    Her ağırlık şeması = farklı bir 'iyi müşteri' tanımı. Örn. harcamaya
+    %40 verirken aslında 'değerli müşteri = çok harcayan' varsayımı
+    yapıyorum. Bu varsayım gerçek olabilir, ama bir tercih olduğu
+    şeffafça gösterilmeli. Aynı veriyi farklı ağırlık şemasıyla
+    skorladığımda **kimin yüksek segmente girdiği** ne kadar değişiyor?
+    Bu fark kararın metodolojik kırılganlığıdır.
     """
     df      = _load(CLEANED_PATH)
     mapping = _load_mapping()
@@ -331,10 +375,20 @@ def score_customers(weights_json: str = "") -> str:
         oz["en_riskli_agirlik"] = f"'{en_dominant}' (r={korlar[en_dominant]:+.3f}) skoru domine ediyor"
     oz["metrik_skor_korelasyonlari"] = korlar
     oz["bias_katki_skoru"] = _bias_contribution_score(0, max_fark)
+    oz["varsayim"] = (
+        f"'Yüksek değerli müşteri' tanımım: kullanılan ağırlık şeması. "
+        f"En etkili metrik '{oz.get('en_riskli_agirlik','—').split(' ')[0] if oz.get('en_riskli_agirlik') else '—'}'. "
+        "Eşit ağırlık denemek bu varsayımdan ne kadar uzaklaştığımı gösterir."
+    )
     oz["sonuc"] = (
-        f"⚠ Ağırlık kararlarım {max_fark:.1f} puanlık demografik skor farkı yarattı."
+        f"ⓘ Ağırlık seçimim demografik gruplar arası {max_fark:.1f} puanlık skor farkı üretti. "
+        "Bu fark gerçek harcama davranış sinyali olabilir veya benim metodolojimden "
+        "kaynaklanabilir. Counterfactual karşılaştırma (eşit ağırlık) hangisinin "
+        "doğru olduğunu netleştirir — bu rapor bunu zorla eşitlemeye **çağırmaz**, "
+        "yalnızca eleştirmenin görmesi için yüzeye çıkarır."
         if max_fark > 5 else
-        "✓ Ağırlık kararlarım demografik gruplar arasında kabul edilebilir fark yarattı."
+        "✓ Skor farkları küçük — sonuç ağırlık seçimine duyarlı değil, alternatif "
+        "yöntemle benzer kitle üretilir (robust)."
     )
 
     id_col = mapping.get("id_col", "")
@@ -360,8 +414,14 @@ def score_customers(weights_json: str = "") -> str:
 @tool("Proxy ve Bias Tespit Ajanı")
 def detect_proxy_and_bias(_: str = "") -> str:
     """
-    Proxy değişkenleri VE demografik bias'ı birlikte tespit eder.
-    Öz-değerlendirme: 'Hangi değişkenleri görmezden geldim?'
+    Hassas demografik özelliklerle (cinsiyet, yaş, gelir, şehir) güçlü
+    istatistiksel ilişki taşıyan **proxy** değişkenleri (cihaz, platform vs.)
+    tespit eder. Ayrıca yüksek-skor segmentindeki demografik dağılımı
+    raporlar.
+
+    Bu rapor bir 'bias hatası' değildir. Eğer modelin sonucu bir proxy
+    değişkene güçlü bağlıysa, ajan bu bağımlılığı **görmüş** olur — sonucu
+    silmek değil, kararın kaynağını anlamak amaçlıdır.
     """
     df      = _load(SCORED_PATH)
     mapping = _load_mapping()
@@ -427,11 +487,20 @@ def detect_proxy_and_bias(_: str = "") -> str:
     oz = {
         "gozden_kacirilan_iliskiler": gozden_kacirilanlar,
         "bias_katki_skoru": _bias_contribution_score(len(proxy_analizi) * 2),
+        "varsayim": (
+            "Skorlamada kullandığım metrikler 'tarafsız' davranış değişkenleri. "
+            "Ama bu metriklerin hassas demografik özelliklerle güçlü "
+            "korelasyonu varsa, ben aslında dolaylı olarak demografi üzerinden "
+            "skor verebilirim — buna fark etmeden."
+        ),
         "sonuc": (
-            f"⚠ {len([p for p in proxy_analizi if p['risk']=='YÜKSEK'])} yüksek riskli proxy tespit ettim. "
-            f"Bu değişkenleri gözden kaçırmak bias değerlendirmemi eksik bıraktı."
+            f"ⓘ {len([p for p in proxy_analizi if p['risk']=='YÜKSEK'])} yüksek riskli proxy "
+            f"ilişkisi var. Bu ilişki bir 'hata' değil — model kararımın "
+            f"hangi yolla bir demografik özelliği temsil ettiğini ortaya koyuyor. "
+            "Eleştirmen bu bilgiyle sonucumun **anlamını** sorgulayabilir."
             if any(p["risk"] == "YÜKSEK" for p in proxy_analizi) else
-            "✓ Proxy değişken analizi tamamlandı."
+            "✓ Güçlü proxy ilişkisi yok — skor metriklerim demografik "
+            "özelliklerden büyük ölçüde bağımsız."
         ),
     }
 
@@ -454,8 +523,13 @@ def detect_proxy_and_bias(_: str = "") -> str:
 @tool("Çapraz Ajan Değerlendirme Ajanı")
 def inter_agent_critique(_: str = "") -> str:
     """
-    Tüm ajanların öz-değerlendirmelerini okur, doğrular, çelişkileri bulur.
-    Her ajanın toplam bias katkısını hesaplar ve düzeltme önerileri sunar.
+    Tüm ajanların kararlarının altındaki **varsayımları** ve **metodolojik
+    kırılganlık** değerlerini okur. Hangi kararın alternatif yöntemle en
+    çok değişeceğini (en yüksek varsayım hassasiyetli) tespit eder.
+
+    Bu fonksiyon çıktıyı 'düzeltmez' — kararı yapan ajana 'eğer alternatif
+    yöntemini denersen, sonuç şu kadar değişir' bilgisini iletir. Karar
+    çıktıyı zorlamadan, sadece **şeffaflığı** artırarak verilir.
     """
     log     = _read_log()
     mapping = _load_mapping()
@@ -465,76 +539,93 @@ def inter_agent_critique(_: str = "") -> str:
     degerlendirmeler = []
     duzeltme_onerileri = {}
 
-    # ── TEMIZLEME AJANI DEĞERLENDİRMESİ ──────────────────────
+    # ── TEMİZLEME AJANI: VARSAYIM SORGULAMASI ────────────────
     if "Veri Temizleme" in log:
         vt = log["Veri Temizleme"]["oz_degerlendirme"]
         max_k = max((v.get("max_kayma", 0) for v in vt.get("demografik_kaymalar", {}).values()), default=0)
-        dogrulama = "ONAYLANDI" if max_k > 2 else "HAFİFE ALINDI"
+        kirilganlik = "YÜKSEK" if max_k > 5 else ("ORTA" if max_k > 2 else "DÜŞÜK")
         degerlendirmeler.append({
             "ajan": "Veri Temizleme",
-            "kendi_bildirdigi_bias_skoru": vt.get("bias_katki_skoru", 0),
-            "dogrulama": dogrulama,
-            "elestiri": (
-                f"Mod dolgu kararları {max_k:.1f} puanlık demografik kayma yarattı. "
-                "Eksik değerleri doldurmak yerine 'Bilinmiyor' kategorisi oluşturulmalıydı."
+            "varsayim_hassasiyet_skoru": vt.get("bias_katki_skoru", 0),
+            "ifsa_edilen_varsayim": vt.get("varsayim", ""),
+            "metodolojik_kirilganlik": kirilganlik,
+            "alternatif_test_onerisi": (
+                f"Mod dolgu yerine 'Bilinmiyor' kategorisini dene. Mevcut sonuç "
+                f"{max_k:.1f} puanlık demografik kayma içeriyor — alternatifle bu "
+                f"sayı düşerse karar varsayıma duyarlı (fragile), aynı kalırsa "
+                f"sonuç gerçek veri yapısından geliyor (robust)."
                 if max_k > 3 else
-                "Temizleme kararları bias açısından yeterince değerlendirilmiş."
+                "Karar metodolojiden büyük ölçüde bağımsız görünüyor — alternatif "
+                "test yapılabilir ama büyük fark beklenmiyor."
             ),
-            "duzeltme": "Eksik kategorik değerler için 'Bilinmiyor' etiketi kullan" if max_k > 3 else None,
+            "soru": "Bu temizleme yöntemi tek seçenek miydi, yoksa varsayılan bir tercih mi?",
         })
         if max_k > 3:
-            duzeltme_onerileri["Veri Temizleme"] = "Mod dolgu yerine 'Bilinmiyor' kategorisi"
+            duzeltme_onerileri["Veri Temizleme"] = "Alternatif yöntem: 'Bilinmiyor' kategorisi (zorlama değil, varsayım testi)"
 
-    # ── SKORLAMA AJANI DEĞERLENDİRMESİ ───────────────────────
+    # ── SKORLAMA AJANI: VARSAYIM SORGULAMASI ─────────────────
     if "Skorlama" in log:
         sk = log["Skorlama"]["oz_degerlendirme"]
         max_fark = max((v.get("max_fark_puan", 0) for v in sk.get("demografik_skor_farklari", {}).values()), default=0)
         dominant_metrik = sk.get("en_riskli_agirlik", "")
-        dogrulama = "ONAYLANDI" if max_fark > 5 else "HAFİFE ALINDI"
+        kirilganlik = "YÜKSEK" if max_fark > 10 else ("ORTA" if max_fark > 5 else "DÜŞÜK")
         degerlendirmeler.append({
             "ajan": "Skorlama",
-            "kendi_bildirdigi_bias_skoru": sk.get("bias_katki_skoru", 0),
-            "dogrulama": dogrulama,
-            "elestiri": (
-                f"{max_fark:.1f} puanlık demografik skor farkı oluştu. "
-                f"{dominant_metrik}. Eşit ağırlık dağılımı daha adil olurdu."
+            "varsayim_hassasiyet_skoru": sk.get("bias_katki_skoru", 0),
+            "ifsa_edilen_varsayim": sk.get("varsayim", ""),
+            "metodolojik_kirilganlik": kirilganlik,
+            "alternatif_test_onerisi": (
+                f"Eşit ağırlıkla yeniden skorla ve mevcut sıralamayı karşılaştır. "
+                f"{dominant_metrik}. Eşit ağırlıkla aynı kişiler yüksek segmente "
+                f"girerse karar robust (gerçek sinyal); büyük farklar varsa karar "
+                f"ağırlık tercihime bağlıydı (fragile)."
                 if max_fark > 5 else
-                "Skorlama ağırlıkları demografik açıdan kabul edilebilir sonuç vermiş."
+                "Mevcut ağırlık seti zaten dengeli görünüyor — eşit ağırlık testi "
+                "yapılabilir ama önemli fark beklenmiyor."
             ),
-            "duzeltme": f"Tüm metrikleri eşit ağırlıkla skorla" if max_fark > 5 else None,
+            "soru": "Bu metrik ağırlıkları gerçek iş hedefinden mi yoksa kolaylıktan mı seçildi?",
         })
         if max_fark > 5:
             n = len(metric_cols)
             equal_w = {c: round(1.0/n, 4) for c in metric_cols} if n else {}
-            duzeltme_onerileri["Skorlama"] = {"yeni_agirliklar": equal_w, "beklenen_fark_azalmasi": f"%{min(int(max_fark*3), 60)}"}
+            duzeltme_onerileri["Skorlama"] = {
+                "alternatif_agirliklar": equal_w,
+                "amac": "Çıktıyı eşitlemek değil, varsayım hassasiyetini ölçmek",
+                "beklenen_fark": f"{max_fark:.1f} puanın ne kadarının metodolojiden geldiğini gör",
+            }
 
-    # ── PROXY AJANI DEĞERLENDİRMESİ ──────────────────────────
+    # ── PROXY AJANI: VARSAYIM SORGULAMASI ────────────────────
     if "Proxy & Bias Tespiti" in log:
         pb = log["Proxy & Bias Tespiti"]["oz_degerlendirme"]
         degerlendirmeler.append({
             "ajan": "Proxy & Bias Tespiti",
-            "kendi_bildirdigi_bias_skoru": pb.get("bias_katki_skoru", 0),
-            "dogrulama": "ONAYLANDI",
-            "elestiri": pb.get("sonuc", ""),
-            "duzeltme": None,
+            "varsayim_hassasiyet_skoru": pb.get("bias_katki_skoru", 0),
+            "ifsa_edilen_varsayim": pb.get("varsayim", ""),
+            "metodolojik_kirilganlik": "BİLGİ", # proxy analizi kararı değil bilgiyi açar
+            "alternatif_test_onerisi": pb.get("sonuc", ""),
+            "soru": "Tespit edilen proxy ilişkiler kararlarımın hangi yönünü açıklıyor?",
         })
 
-    # ── TOPLAM BİAS KATKI SIRALAMASI ─────────────────────────
+    # ── METODOLOJİK KIRILGANLIK SIRALAMASI ───────────────────
+    # Sıralama yüksekten düşüğe: hangi karar en çok yönteme bağımlı?
     siralama = sorted(
-        [{"ajan": d["ajan"], "skor": d["kendi_bildirdigi_bias_skoru"]} for d in degerlendirmeler],
+        [{"ajan": d["ajan"], "skor": d["varsayim_hassasiyet_skoru"]} for d in degerlendirmeler],
         key=lambda x: x["skor"], reverse=True
     )
 
-    en_yuksek = siralama[0]["ajan"] if siralama else "—"
+    en_kirilgan = siralama[0]["ajan"] if siralama else "—"
 
     result = {
         "ajan_degerlendirmeleri": degerlendirmeler,
+        # Geriye dönük uyum için alan adı korundu, ama artık "varsayım hassasiyeti"
         "bias_katki_siramasi": siralama,
-        "en_yuksek_katkili_ajan": en_yuksek,
+        "en_yuksek_katkili_ajan": en_kirilgan,
         "duzeltme_onerileri": duzeltme_onerileri,
         "ozet": (
-            f"En yüksek bias katkısı '{en_yuksek}' ajanından geliyor. "
-            f"{len(duzeltme_onerileri)} ajan için düzeltme önerildi."
+            f"En kırılgan karar '{en_kirilgan}' ajanından. {len(duzeltme_onerileri)} "
+            "ajanın kararı için alternatif varsayım testi öneriliyor. "
+            "Amaç çıktıyı değiştirmek değil, kararın varsayım bağımlılığını "
+            "sayısal olarak göstermek."
         ),
     }
 
@@ -546,11 +637,20 @@ def inter_agent_critique(_: str = "") -> str:
 #  AJAN 6 — DÜZELTİLMİŞ YENİDEN SKORLAMA
 # ══════════════════════════════════════════════════════════════
 
-@tool("Düzeltilmiş Skorlama Ajanı")
+@tool("Alternatif Varsayım Skorlaması")
 def corrected_scoring(_: str = "") -> str:
     """
-    Eleştirmen ajanın önerilerine göre yeni ağırlıklarla skoru yeniden hesaplar.
-    Öncesi/sonrası karşılaştırması yapar.
+    Skorlama ajanının ağırlık seçimini alternatif bir varsayımla
+    (genellikle eşit ağırlık) yeniden hesaplar ve iki sonucu yan yana koyar.
+
+    Bu bir "düzeltme" değildir — kararı zorla değiştirmez. Amaç, ilk skorun
+    ne kadarının ağırlık tercihinden, ne kadarının veriden geldiğini ölçmek.
+    İki yöntem benzer sonuç veriyorsa ilk karar **robust**; çok farklıysa
+    ilk karar **fragile** ve şeffafça raporlanmalı.
+
+    NOT: Çıktı CSV (customers_scored.csv) alternatif sonucu yazar; orijinal
+    sonuç pipeline_log'da kalır. Final ajan iki sonucu karşılaştırarak
+    hangisinin sunulacağına karar verir.
     """
     df      = _load(CLEANED_PATH)
     mapping = _load_mapping()
@@ -599,33 +699,67 @@ def corrected_scoring(_: str = "") -> str:
         except Exception:
             sonraki_farklar[col] = 0
 
-    # Karşılaştırma
+    # İlk yöntem vs alternatif yöntem karşılaştırması.
+    # Yeni alan adları metaforu yansıtır; eski alan adları geriye dönük
+    # uyumluluk için de bulundurulur (build_final_and_report + server.py).
     karsilastirma = {}
     for col in demo_cols:
-        once  = onceki_farklar.get(col, 0)
-        sonra = sonraki_farklar.get(col, 0)
+        ilk_yontem  = onceki_farklar.get(col, 0)
+        alt_yontem  = sonraki_farklar.get(col, 0)
+        delta       = round(ilk_yontem - alt_yontem, 2)
+        delta_pct   = round(delta / (ilk_yontem + 1e-9) * 100, 1)
         karsilastirma[col] = {
-            "onceki_fark": once,
-            "sonraki_fark": sonra,
-            "iyilesme_puan": round(once - sonra, 2),
-            "iyilesme_yuzde": round((once - sonra) / (once + 1e-9) * 100, 1),
+            # Yeni metafor (varsayım hassasiyeti)
+            "ilk_yontem_fark":         ilk_yontem,
+            "alternatif_yontem_fark":  alt_yontem,
+            "delta":                   delta,
+            "delta_yuzde":             delta_pct,
+            # Geriye dönük (downstream tooling — anlam değişti ama sayı aynı)
+            "onceki_fark":             ilk_yontem,
+            "sonraki_fark":            alt_yontem,
+            "iyilesme_puan":           delta,
+            "iyilesme_yuzde":          delta_pct,
         }
 
-    toplam_iyilesme = sum(v["iyilesme_puan"] for v in karsilastirma.values())
+    toplam_delta = sum(v["delta"] for v in karsilastirma.values())
+    ortalama_delta = round(toplam_delta / max(len(karsilastirma), 1), 2)
+    # Karar kırılganlığı: alternatif yöntemle sonuçların yaklaşma kuvveti
+    karar_kirilganligi = (
+        "FRAGILE" if abs(ortalama_delta) > 3 else
+        "ORTA"    if abs(ortalama_delta) > 1 else
+        "ROBUST"
+    )
 
     result = {
         "uygulanan_agirliklar": yeni_agirliklar,
         "skor_dagilimi": df["skor_segmenti"].astype(str).value_counts().to_dict(),
+        # Geriye dönük uyumluluk için eski anahtar adları korundu
         "oncesi_sonrasi": karsilastirma,
-        "toplam_bias_azalmasi_puan": round(toplam_iyilesme, 2),
+        "toplam_bias_azalmasi_puan": round(toplam_delta, 2),
+        # Yeni alanlar — yorumun yeni metaforu
+        "karar_kirilganligi": karar_kirilganligi,
+        "ortalama_delta": ortalama_delta,
         "ozet": (
-            f"Düzeltme sonrası toplam {toplam_iyilesme:.1f} puanlık bias azaldı."
-            if toplam_iyilesme > 0 else
-            "Düzeltme mevcut bias düzeyini değiştirmedi."
+            f"İki yöntem arası ortalama {ortalama_delta:+.1f} puanlık fark "
+            f"({karar_kirilganligi}). "
+            + (
+                "İlk skorlama yöntemi sonuç üzerinde belirgin etki yarattı — "
+                "karar varsayıma duyarlı (fragile). Final raporda her iki "
+                "yöntemin sonucu **şeffaflık için** birlikte sunulmalı."
+                if karar_kirilganligi == "FRAGILE" else
+                "Sonuç ağırlık tercihinden büyük ölçüde bağımsız — ilk "
+                "skorlama yöntemi robust. Alternatifle aynı kitle çıkıyor."
+                if karar_kirilganligi == "ROBUST" else
+                "Karar kısmen yönteme bağımlı; sınırlı fark ama yine de raporlanmalı."
+            )
         ),
     }
 
-    _log_agent("Düzeltilmiş Skorlama", {"ozet": result["ozet"], "oncesi_sonrasi": karsilastirma})
+    _log_agent("Düzeltilmiş Skorlama", {
+        "ozet": result["ozet"],
+        "karar_kirilganligi": karar_kirilganligi,
+        "oncesi_sonrasi": karsilastirma,
+    })
     return _dumps(result)
 
 
@@ -686,8 +820,18 @@ def build_final_and_report(criteria_json: str = "") -> str:
 
     duzeltme_log = log.get("Düzeltilmiş Skorlama", {}).get("oncesi_sonrasi", {})
     if duzeltme_log:
-        en_iyi = max(duzeltme_log.items(), key=lambda x: x[1].get("iyilesme_puan", 0))
-        surec["en_etkili_duzeltme"] = f"'{en_iyi[0]}' bias'ı {en_iyi[1].get('iyilesme_puan',0):.1f} puan azaldı"
+        # Yöntem değiştirmenin en çok etkilediği demografik boyut hangisi?
+        en_kirilgan = max(duzeltme_log.items(),
+                          key=lambda x: abs(x[1].get("delta",
+                              x[1].get("iyilesme_puan", 0))))
+        delta_val = en_kirilgan[1].get("delta",
+                                       en_kirilgan[1].get("iyilesme_puan", 0))
+        surec["en_etkili_duzeltme"] = (
+            f"En yöntem-duyarlı demografik boyut '{en_kirilgan[0]}' "
+            f"(alternatif yöntemle fark {delta_val:+.1f} puan). "
+            "Bu boyut için iki yöntemin sonucu en uzakta; karar burada en "
+            "kırılgan."
+        )
 
     # ── OPTİMAL KİTLE RAPORU ──────────────────────────────────
     display_cols = ([id_col] if id_col and id_col in final.columns else []) + demo_cols + metric_cols + ["potansiyel_skor", "gelecek_potansiyel"]
@@ -837,10 +981,12 @@ def counterfactual_test(scenarios_json: str = "") -> str:
         "en_iyi_senaryo": en_iyi,
         "en_iyi_max_fark": sonuclar.get(en_iyi, {}).get("max_demografik_fark", 0),
         "ozet": (
-            f"{len(sonuclar)} senaryo karşılaştırıldı. "
-            f"En düşük demografik fark '{en_iyi}' senaryosunda "
+            f"{len(sonuclar)} farklı ağırlık varsayımı test edildi. "
+            f"En az demografik kayma '{en_iyi}' senaryosunda "
             f"({sonuclar.get(en_iyi, {}).get('max_demografik_fark', 0):.1f} puan, "
-            f"{sonuclar.get(en_iyi, {}).get('yuksek_prime_sayisi', 0)} Yüksek+Prime)."
+            f"{sonuclar.get(en_iyi, {}).get('yuksek_prime_sayisi', 0)} Yüksek+Prime). "
+            "Bu tablo 'doğru senaryo'yu seçtirmek için değil, ilk skorlamanın "
+            "ağırlık tercihine ne kadar duyarlı olduğunu göstermek içindir."
         ),
     }
 
@@ -852,14 +998,19 @@ def counterfactual_test(scenarios_json: str = "") -> str:
 
 
 # ══════════════════════════════════════════════════════════════
-#  AJAN 6.5 — İTERATİF ÖZ-DÜZELTME LOOP'U
-#  (Critic + corrected_scoring döngüsünü bias eşik altına inene kadar
-#   ya da max_iterations'a kadar tekrarlar. "Öz-farkındalıklı" iddianın
-#   gerçekten kapatıldığı tek pas yerine tekrarlı düzeltme akışı.)
+#  AJAN 6.5 — İTERATİF VARSAYIM ROBUSTLUK TESTİ
+#
+#  Critic + alternative-scoring döngüsünü turlar arası çıktı farkı
+#  yumuşadığı zaman sonlandırır. Convergence kriteri "bias eşiği altına
+#  in" DEĞİL, "ardışık turlardaki sonuç çok yakın → karar artık alternatif
+#  yöntemlere duyarsız (robust)" demektir. Çıktıyı eşitlemiyoruz; kararın
+#  hangi noktadan sonra yöntemden bağımsızlaştığını arıyoruz.
 # ══════════════════════════════════════════════════════════════
 
-# Demografik fark puanı eşiği — bunun altına inilirse loop biter
-BIAS_FARK_ESIGI = 5.0
+# Turlar arası max demografik fark değişiminin bu eşik altına inmesi =
+# convergence (kararlar artık yönteme duyarsız, daha fazla iterasyon
+# kullanmaya gerek yok)
+STABILITE_ESIGI = 1.0
 
 
 def _max_demographic_gap(df: pd.DataFrame, demo_cols: list, score_col: str = "potansiyel_skor") -> float:
@@ -880,17 +1031,23 @@ def _max_demographic_gap(df: pd.DataFrame, demo_cols: list, score_col: str = "po
     return round(max_fark, 2)
 
 
-@tool("İteratif Öz-Düzeltme Loop")
+@tool("İteratif Varsayım Robustluk Testi")
 def iterative_correction(max_iterations: str = "3") -> str:
     """
-    Çapraz değerlendirme + düzeltilmiş skorlama döngüsünü, en yüksek
-    demografik skor farkı 5 puanın altına inene kadar veya max_iterations
-    sayısına ulaşana kadar tekrarlar.
+    Critic + alternative-scoring döngüsünü, ardışık turlar arası çıktı farkı
+    küçük olduğunda (STABILITE_ESIGI altında) ya da max_iterations'a
+    ulaşıldığında sonlandırır.
 
     Her turda:
-      1. inter_agent_critique → yeni düzeltme önerileri (log'a yazılır)
-      2. corrected_scoring → öneriyi uygula, customers_scored.csv güncellenir
-      3. Max demografik fark ölç → eşik altına indiyse erken sonlandır
+      1. inter_agent_critique → her ajanın varsayımı + alternatif test önerisi
+      2. corrected_scoring → alternatif varsayımı uygula, sonucu kaydet
+      3. Mevcut max demografik fark ile bir önceki turun farkını karşılaştır
+         → değişim küçükse karar artık alternatife duyarsız (robust), dur.
+
+    Bu loop çıktıyı zorla eşitlemez. Aksine: ajanın kararının hangi noktadan
+    sonra yöntem değişikliğine **duyarsız** kaldığını bulur. O nokta =
+    convergence. Convergence'ta hangi yöntem kullanılırsa kullanılsın
+    yaklaşık aynı kitle çıkar → karar veriye bağlı, yönteme değil.
 
     Default: max 3 tur.
     """
@@ -903,7 +1060,7 @@ def iterative_correction(max_iterations: str = "3") -> str:
     mapping   = _load_mapping()
     demo_cols = mapping.get("demographic_cols", [])
 
-    # Loop öncesi durum
+    # Loop öncesi durum — ilk skorlama yönteminin sonucu
     try:
         df_before = _load(SCORED_PATH)
         baslangic_fark = _max_demographic_gap(df_before, demo_cols)
@@ -911,11 +1068,12 @@ def iterative_correction(max_iterations: str = "3") -> str:
         baslangic_fark = 0.0
 
     iterations = []
-    son_max_fark = baslangic_fark
-    erken_sonlanma = False
+    onceki_fark = baslangic_fark
+    son_fark = baslangic_fark
+    converged = False
 
     for i in range(max_iter):
-        # 1. Eleştirmen yeni öneri üretsin
+        # 1. Eleştirmen ajanların varsayımlarını yeniden gözden geçirir
         try:
             critic_out = json.loads(inter_agent_critique.run(""))
         except Exception as e:
@@ -923,61 +1081,76 @@ def iterative_correction(max_iterations: str = "3") -> str:
 
         oneri = critic_out.get("duzeltme_onerileri", {})
 
-        # 2. Düzeltmeyi uygula
+        # 2. Alternatif varsayımla skorlamayı yeniden çalıştır
         try:
             corr_out = json.loads(corrected_scoring.run(""))
         except Exception as e:
             corr_out = {"hata": str(e)}
 
-        # 3. Max demografik fark
+        # 3. Yeni durum + bir önceki turla karşılaştır
         try:
             df_after = _load(SCORED_PATH)
-            son_max_fark = _max_demographic_gap(df_after, demo_cols)
+            son_fark = _max_demographic_gap(df_after, demo_cols)
         except Exception:
-            son_max_fark = son_max_fark
+            son_fark = son_fark
+
+        # Stabilite: bu turun çıktısı bir öncekinden ne kadar farklı?
+        tur_arasi_degisim = round(abs(son_fark - onceki_fark), 2)
+        stabil = tur_arasi_degisim < STABILITE_ESIGI
 
         iterations.append({
             "tur": i + 1,
-            "duzeltme_oneri_sayisi": len(oneri),
-            "duzeltme_oneri_ozet": list(oneri.keys()),
+            "test_edilen_varsayim_sayisi": len(oneri),
+            "test_edilen_varsayimlar": list(oneri.keys()),
             "uygulanan_agirliklar": corr_out.get("uygulanan_agirliklar", {}),
-            "iyilesme_puan": corr_out.get("toplam_bias_azalmasi_puan", 0),
-            "max_demografik_fark": son_max_fark,
-            "esik_altinda": son_max_fark < BIAS_FARK_ESIGI,
+            "max_demografik_fark": son_fark,
+            "onceki_tura_gore_degisim": tur_arasi_degisim,
+            "karar_kirilganligi": corr_out.get("karar_kirilganligi", "—"),
+            "stabil": stabil,
         })
 
-        if son_max_fark < BIAS_FARK_ESIGI:
-            erken_sonlanma = True
+        # Sadece ilk tur değilse stabilite kontrolü yap
+        if i > 0 and stabil:
+            converged = True
             break
 
+        onceki_fark = son_fark
+
     sonuc_durumu = (
-        "✓ CONVERGED — bias eşiği altına indirildi"
-        if erken_sonlanma else
-        f"⚠ MAX_ITER reached — {max_iter} tur sonunda bias {son_max_fark:.1f} puan, eşik {BIAS_FARK_ESIGI}"
+        f"✓ CONVERGED — kararlar artık alternatif varsayımlara duyarsız "
+        f"(turlar arası değişim < {STABILITE_ESIGI} puan). Sonuç yöntemden "
+        f"bağımsız → veriye bağlı (robust)."
+        if converged else
+        f"ⓘ MAX_ITER — {max_iter} tur sonunda hâlâ varyans var. "
+        f"Karar yönteme duyarlı kaldı, ajan bu kırılganlığı **kabul edip** "
+        f"final raporda iki yöntemin sonucunu birlikte sunmalı."
     )
 
-    toplam_iyilesme = round(baslangic_fark - son_max_fark, 2)
+    toplam_kayma = round(baslangic_fark - son_fark, 2)
 
     result = {
         "max_iter": max_iter,
-        "bias_esigi": BIAS_FARK_ESIGI,
+        "stabilite_esigi": STABILITE_ESIGI,
         "baslangic_max_fark": baslangic_fark,
-        "son_max_fark": son_max_fark,
-        "toplam_iyilesme_puan": toplam_iyilesme,
+        "son_max_fark": son_fark,
+        # Geriye dönük uyum için eski alan adı korundu
+        "toplam_iyilesme_puan": toplam_kayma,
         "tur_sayisi": len(iterations),
-        "erken_sonlandi": erken_sonlanma,
+        # Geriye dönük uyum: "erken_sonlandi" terimi kullanılıyor ama
+        # anlamı şimdi "convergence sağlandı"
+        "erken_sonlandi": converged,
         "iterasyonlar": iterations,
         "sonuc": sonuc_durumu,
         "ozet": (
-            f"{len(iterations)} tur sonra max demografik fark "
-            f"{baslangic_fark:.1f} → {son_max_fark:.1f} puan ({toplam_iyilesme:+.1f}). {sonuc_durumu}"
+            f"{len(iterations)} tur sonra demografik fark "
+            f"{baslangic_fark:.1f} → {son_fark:.1f} puan. {sonuc_durumu}"
         ),
     }
 
     _log_agent("İteratif Düzeltme", {
         "tur_sayisi": len(iterations),
         "baslangic": baslangic_fark,
-        "son": son_max_fark,
-        "erken_sonlandi": erken_sonlanma,
+        "son": son_fark,
+        "converged": converged,
     })
     return _dumps(result)

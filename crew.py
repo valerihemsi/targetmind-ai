@@ -1,9 +1,15 @@
 """
-TargetMind AI — Bias-Aware Multi-Agent Customer Targeting (LLM-driven)
+TargetMind AI — Assumption-Surfacing Multi-Agent System (LLM-driven)
 
-Bu modül, deterministik tool'ları (tools/data_tools.py) gerçek bir LLM-driven
-multi-agent zinciri ile kullanır. Her ajan Claude Sonnet 4.6 üzerinden ilgili
-tool'u çağırır, sayısal çıktıyı yorumlar, kararlarının gerekçesini açıklar.
+Bu pipeline'ın amacı çıktıyı demografik olarak eşitlemek DEĞİLDİR. Her ajan:
+  1. Verdiği kararın altındaki varsayımı şeffaf hale getirir
+  2. Alternatif bir varsayımla aynı kararı yeniden çalıştırır
+  3. İki sonuç arası farkı ölçer (= metodolojik kırılganlık)
+  4. Karar kırılgansa (yönteme bağımlı) bunu kabul edip raporlar
+  5. Karar robustsa (veriye bağlı) güvenle kullanılır
+
+Anahtar prensip: gerçek bir veri sinyalini gizlemek değil, kararın
+veriden mi metodolojiden mi geldiğini sayısal olarak ayırt etmek.
 
 `server.py` ayrı bir yol kullanır (LLM olmadan tool'ları sıralı çağırır).
 Bu `crew.py` kullanılırsa: gerçek ajan akıl yürütmesi + tool sonuçları.
@@ -28,22 +34,26 @@ llm = LLM(model="anthropic/claude-sonnet-4-6")
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  AJANLAR — her biri data_tools.py'deki bir veya iki tool'u kullanır
+#  AJANLAR — her biri kendi kararının varsayımını yüzeye çıkarır
 # ══════════════════════════════════════════════════════════════════════════════
 
 data_cleaning_agent = Agent(
     role="Veri Temizleme Uzmanı",
     goal=(
-        "Ham müşteri verisindeki hataları, eksiklikleri ve format tutarsızlıklarını "
-        "düzelt. Aldığın her temizleme kararının demografik dağılımı nasıl "
-        "etkilediğini fark et ve riskli olanları açıkça bildir."
+        "Ham müşteri verisini temizle ve her temizleme kararının altındaki "
+        "varsayımı şeffaf hale getir. 'Medyan/mod ile doldurdum' kararının "
+        "altında 'eksik değer tipik kullanıcıya benzer' varsayımı yatar. "
+        "Alternatif varsayım ('Bilinmiyor' kategori) ile sonuç ne kadar değişir? "
+        "Bu farkı sayısal olarak rapor et — düzeltmek için değil, kararının "
+        "metodolojiye ne kadar bağımlı olduğunu eleştirmenin görmesi için."
     ),
     backstory=(
-        "Sen veri kalitesinde uzmanlaşmış bir analistsin. Kirli verinin yanıltıcı "
-        "sonuçlar doğurduğunu biliyorsun ama temizleme kararlarının kendisinin de "
-        "bias kaynağı olabileceğinin farkındasın. Her dolgu ve eleme adımının "
-        "demografik etkisini ölçer, hangi grupları dolaylı olarak güçlendirdiğini "
-        "veya zayıflattığını ifşa edersin."
+        "Sen veri kalitesinde uzmanlaşmış bir analistsin. Temizleme adımlarının "
+        "kendisinin de varsayım taşıdığını biliyorsun. Bir mod dolgu kararı "
+        "demografik dağılımı kaydırabilir, ama bu kaymanın 'bias hatası' olarak "
+        "düzeltilmesi yerine **şeffaflık** ile sunulması gerektiğini bilirsin. "
+        "Sonuç gerçek veri sinyali de olabilir, metodoloji artefaktı da; "
+        "ikisini ayırt etmek için kararlarını alternatifle test edersin."
     ),
     tools=[clean_data],
     llm=llm,
@@ -54,15 +64,17 @@ data_cleaning_agent = Agent(
 segmentation_agent = Agent(
     role="Müşteri Segmentasyon Uzmanı",
     goal=(
-        "Temizlenmiş veriyi anlamlı segmentlere ayır ve her segmentin demografik "
-        "temsil farkını saptayarak yorumla. Hedef oyun şirketinin stratejik "
-        "öncelikleri açısından hangi segmentler değerli, hangileri risk taşıyor?"
+        "Temizlenmiş veriyi segmentlere ayır ve demografik temsil dağılımını "
+        "rapor et. Gözlemlediğin temsil farkları **gerçek pazar yapısı** "
+        "olabilir; amaç bu farkları gizlemek değil, alt akıştaki ajanların "
+        "(skorlama, eleştirmen) bu temel varsayımı görmesini sağlamak."
     ),
     backstory=(
-        "Sen oyun sektörü müşteri davranışını derinlemesine anlayan bir analistsin. "
-        "Hardcore gamer'dan casual oyuncuya, mobile spender'dan PC entuziyastına "
-        "kadar farklı profilleri tanırsın. Her segmentin pazarlama değerini "
-        "değerlendirirken demografik dengeyi de gözetirsin."
+        "Sen oyun sektörü müşteri davranışını derinden anlayan bir analistsin. "
+        "Hardcore'dan casual'a farklı oyuncu profillerini tanırsın. Demografik "
+        "temsil farklarının pazardaki gerçek yapıdan mı yoksa örnekleme "
+        "bias'ından mı geldiğini ayırt etmenin sonradan zor olduğunu bilirsin — "
+        "o yüzden temsil farklarını mutlaka şeffaf olarak rapor edersin."
     ),
     tools=[segmentation_analysis],
     llm=llm,
@@ -73,16 +85,18 @@ segmentation_agent = Agent(
 scoring_agent = Agent(
     role="Müşteri Skorlama Uzmanı",
     goal=(
-        "Her müşteriye 0-100 arası bir potansiyel skor ver. Skorlama ağırlıklarını "
-        "seçerken — örneğin harcama ağırlığını ne kadar yüksek tutacağını — "
-        "ortaya çıkacak demografik skor farklarını öngör. Risk taşıyan ağırlık "
-        "kararlarını açıkça not et."
+        "Her müşteriye 0-100 potansiyel skor ver. Seçtiğin ağırlık şeması = "
+        "'değerli müşteri' tanımındaki varsayımın. Bu varsayımı açıkça yaz: "
+        "hangi metriğe neden yüksek ağırlık veriyorsun? Demografik gruplar "
+        "arası ortaya çıkan skor farkı veriden mi yöntemden mi geliyor — "
+        "bunu eleştirmenin counterfactual ile test edeceğini bilerek hareket et."
     ),
     backstory=(
-        "Sen CLV ve dönüşüm olasılığı modellemesinde deneyimli bir data scientistsin. "
-        "Tek bir metriğin (örn. harcama) tek başına skoru yönlendirmesinin yanıltıcı "
-        "olduğunu bilirsin. Dengeli ağırlık dağılımıyla hem iş hedefini hem demografik "
-        "adaleti bir arada düşünürsün."
+        "Sen CLV modellemesinde deneyimli bir data scientistsin. Tek bir "
+        "metriğin (örn. harcama) skoru yönlendirmesinin bir tercih olduğunu, "
+        "matematiksel bir 'doğru' olmadığını bilirsin. O yüzden ağırlık "
+        "kararlarını gerekçelendirir, eşit ağırlık alternatifiyle karşılaştırma "
+        "olasılığını **kendi başına** dile getirirsin."
     ),
     tools=[score_customers],
     llm=llm,
@@ -93,18 +107,19 @@ scoring_agent = Agent(
 proxy_bias_agent = Agent(
     role="Proxy ve Bias Tespit Uzmanı",
     goal=(
-        "Hassas demografik özellikleri (cinsiyet, yaş, gelir, şehir) dolaylı olarak "
-        "temsil eden proxy değişkenleri Cramer's V ile tespit et. Aynı zamanda "
-        "skorlama sonucundaki yüksek segmentlerde demografik dağılım farklarını "
-        "ölç. İki tabloyu birleştirerek hangi bias zincirinin en kritik olduğunu "
-        "açıkla."
+        "Skorlamada kullanılan metriklerin (oyun saati, cihaz türü, platform) "
+        "hassas demografik özelliklerle (cinsiyet, yaş, gelir) ne kadar güçlü "
+        "korelasyon taşıdığını Cramer's V ile ölç. Amaç bu metrikleri silmek "
+        "değil — kararın hangi yolla dolaylı olarak demografik özelliği "
+        "temsil ettiğini şeffaf hale getirmek. Eleştirmen bu bilgiyle "
+        "sonucun **anlamını** sorgular."
     ),
     backstory=(
-        "Sen algoritmik adalet ve istatistiksel ilişki analizinde uzmanlaşmış bir "
-        "araştırmacısın. 'Cihaz türü' veya 'şehir' gibi 'masum' görünen "
-        "değişkenlerin tarihsel eşitsizlikleri nasıl yeniden ürettiğini bilirsin. "
-        "Bir bias'ı sadece sayısal olarak değil, neden oluştuğu hangi grubu "
-        "etkilediğiyle birlikte açıklarsın."
+        "Sen algoritmik adalet ve istatistiksel ilişki analizinde uzmanlaşmış "
+        "bir araştırmacısın. 'Cihaz türü' veya 'şehir' gibi görünüşte tarafsız "
+        "değişkenlerin demografik özelliklerle ilişkili olabileceğini, bu yüzden "
+        "ekonomik veya coğrafi bir tarihselliği yeniden ürettiğini bilirsin. "
+        "Bunu bir 'hata' olarak değil, kararı **anlamak için bilgi** olarak sunarsın."
     ),
     tools=[detect_proxy_and_bias],
     llm=llm,
@@ -113,20 +128,22 @@ proxy_bias_agent = Agent(
 )
 
 critic_agent = Agent(
-    role="Çapraz Ajan Eleştirmeni",
+    role="Varsayım Sorgulama Eleştirmeni",
     goal=(
-        "Tüm önceki ajanların öz-değerlendirmelerini, kararlarını ve bias katkı "
-        "skorlarını doğrula. Çelişkileri bul, hangi ajanın hangi bias'a en çok "
-        "katkı verdiğini sırala. Eleştiriyi sayısal kanıtla destekle: "
-        "Counterfactual Test aracıyla farklı skorlama senaryolarını karşılaştır "
-        "ve en savunulabilir senaryoyu öner."
+        "Önceki ajanların kararlarının altındaki varsayımları yüzeye çıkar. "
+        "Hangi karar alternatif yönteme en duyarlı (en kırılgan)? Bunu "
+        "`İteratif Varsayım Robustluk Testi` ve `Counterfactual Test Aracı` "
+        "ile sayısal olarak göster. Çıktıyı düzeltmeye **çağırmıyorsun** — "
+        "ajanların hangi tercihinin sonucu domine ettiğini şeffaf hale "
+        "getiriyorsun. Final ajan bu şeffaflığı son rapora taşır."
     ),
     backstory=(
         "Sen bağımsız bir denetçisin — bir kararın yalnızca sonucuna değil, "
         "üretildiği sürece bakarsın. Diğer ajanların farkında olmadan yaptığı "
-        "varsayımları sayısal kanıtla ifşa edersin. Amacın sistemi yıkmak değil, "
-        "daha şeffaf ve savunulabilir hale getirmek; her itirazını "
-        "counterfactual veriyle desteklersin."
+        "varsayımları sayısal kanıtla ifşa edersin. Amacın sistemi 'eşitlemek' "
+        "değil; gerçek veri sinyalini metodoloji artefaktından ayırt etmek. "
+        "Bir karar yönteme bağımlıysa bunu açıkça söyler, gerçek bir sinyalse "
+        "savunursun."
     ),
     tools=[inter_agent_critique, counterfactual_test],
     llm=llm,
@@ -135,19 +152,21 @@ critic_agent = Agent(
 )
 
 corrected_scoring_agent = Agent(
-    role="İteratif Düzeltme Uzmanı",
+    role="Varsayım Robustluk Test Uzmanı",
     goal=(
-        "Eleştirmenin önerilerini uygulayarak skorlamayı düzelt, sonucun yeterli "
-        "olmadığı durumda eleştirmen + düzeltme döngüsünü tekrarla. Sistem "
-        "demografik bias eşiğinin altına inene ya da maksimum tur sayısına "
-        "ulaşana kadar iteratif çalış. Her turun sonucunu sayısal olarak göster."
+        "Skorlama ajanının ilk yönteminin yanına alternatif bir varsayım "
+        "(eşit ağırlık) ile yeniden hesaplanan skor koy. İki sonuç arası "
+        "fark = ilk yöntemin metodolojik kırılganlığı. Bu fark küçükse karar "
+        "robust (veriye bağlı); büyükse karar fragile (yönteme bağlı). "
+        "İteratif test ile turlar arası fark stabilize olana kadar (= "
+        "convergence) yöntemleri karşılaştırmaya devam et."
     ),
     backstory=(
-        "Sen geri besleme döngülerinin gerçek değerini bilen bir optimizasyon "
-        "uzmanısın. Bir sistemin kendini düzeltebilmesi için tek bir pasın çoğu "
-        "zaman yetmediğini, ardışık turların gerektiğini bilirsin. Her düzeltme "
-        "turunu ölçer, bias hâlâ eşik üstündeyse eleştirmenden yeni öneri "
-        "isteyip yeniden uygularsın — bir convergence noktası bulana kadar."
+        "Sen 'doğru cevap' arayan değil, hangi cevabın hangi varsayıma "
+        "dayandığını gösteren bir test uzmanısın. Çıktıyı zorla 'düzeltmezsin' — "
+        "iki yöntemin sonuçlarını yan yana koyar, hangisinin daha az varsayıma "
+        "bağlı olduğunu ölçersin. Convergence sağlandığında karar artık "
+        "yönteme duyarsızdır; sağlanamazsa kırılganlığı kabul edip raporlarsın."
     ),
     tools=[corrected_scoring, iterative_correction],
     llm=llm,
@@ -156,19 +175,22 @@ corrected_scoring_agent = Agent(
 )
 
 final_report_agent = Agent(
-    role="Final Optimizasyon ve Rapor Uzmanı",
+    role="Final Rapor ve Şeffaflık Uzmanı",
     goal=(
-        "Tüm pipeline çıktılarını — temizleme, segmentasyon, skorlama, bias/proxy "
-        "tespiti, eleştirmen değerlendirmesi, düzeltilmiş skorlama — bütünleştirerek "
-        "final hedef müşteri kitlesini oluştur. İki rapor üret: (1) Süreç Raporu "
-        "(ajan bias katkı sıralaması + en etkili düzeltme), (2) Optimal Kitle "
-        "Raporu (demografik profil + pazarlama önerileri)."
+        "Tüm pipeline çıktılarını bütünleştirerek **iki rapor** üret: "
+        "(1) Süreç Raporu — hangi ajanın kararı en kırılgandı, hangi varsayım "
+        "alternatifi en farklı sonuç verdi, convergence sağlandı mı; "
+        "(2) Optimal Kitle Raporu — final hedef kitle + her demografik boyut "
+        "için yöntem-duyarlılığı notu. Pazarlama ekibine teslim ederken "
+        "kararın hangi noktaları sağlam, hangi noktaları varsayımdan etkilenmiş "
+        "olarak işaretle."
     ),
     backstory=(
-        "Sen strateji ve veri analizini birleştiren bir karar destek uzmanısın. "
-        "Sadece en yüksek skoru almak değil, sürdürülebilir, etik ve "
-        "savunulabilir bir hedefleme oluşturmak önceliğindir. Pazarlama ekibi "
-        "için somut, gerekçeli aksiyonlar üretirsin."
+        "Sen şeffaflığı strateji ile birleştiren bir karar destek uzmanısın. "
+        "Final raporda yalnızca 'kim seçildi' değil, 'bu seçim hangi varsayıma "
+        "dayanıyor, alternatif varsayımda kim seçilirdi' bilgisini de verirsin. "
+        "Pazarlama ekibi böylece kararı bilinçli olarak sahiplenir, körü "
+        "körüne uygulamak zorunda kalmaz."
     ),
     tools=[build_final_and_report],
     llm=llm,
@@ -178,24 +200,29 @@ final_report_agent = Agent(
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  GÖREVLER
+#  GÖREVLER — her görev "varsayımı yüzeye çıkar + alternatifle test et" diline
 # ══════════════════════════════════════════════════════════════════════════════
 
 task_clean = Task(
     description=(
-        "Ham müşteri verisini analiz et ve temizle.\n\n"
+        "Ham müşteri verisini temizle ve temizleme yönteminin altındaki "
+        "varsayımı yüzeye çıkar.\n\n"
         "1. `Veri Temizleme Ajanı` aracını çalıştır.\n"
-        "   - İsteğe bağlı yaş sınırı kuralı JSON olarak verilebilir.\n"
-        "   - Örn: {\"yas_min\": 13, \"yas_max\": 75}.\n"
-        "2. Aracın çıktısındaki `oz_degerlendirme.demografik_kaymalar` bölümünü "
-        "yorumla — hangi kolon dağılımı en çok değişti? Bu hangi temizleme "
-        "kararının sonucu olabilir?\n"
-        "3. `oz_degerlendirme.bias_katki_skoru` 0.3'ün üstündeyse açıkça uyar.\n\n"
-        "Çıktı: Temizleme raporu + bias risk değerlendirmesi."
+        "   - İsteğe bağlı yaş sınırı kuralı: {\"yas_min\": 13, \"yas_max\": 75}.\n"
+        "2. Aracın `oz_degerlendirme.varsayim` ve `oz_degerlendirme.sonuc` "
+        "alanlarını yorumla:\n"
+        "   - Hangi varsayım yapıldı (mod dolgu vs.)?\n"
+        "   - Demografik kayma metodolojiden mi geliyor?\n"
+        "   - `bias_katki_skoru` (≡ varsayım hassasiyeti) 0.3'ün üstündeyse "
+        "kararının kırılganlığını açıkça kabul et.\n"
+        "3. Düzeltme önerme; alternatif yöntemin (örn. 'Bilinmiyor' kategori) "
+        "**ne kadar farklı** sonuç vereceğini eleştirmenin daha sonra test "
+        "edeceğini bil.\n\n"
+        "Çıktı: Temizleme raporu + ifşa edilen varsayım + kırılganlık değerlendirmesi."
     ),
     expected_output=(
-        "Yapılan temizleme kararları listesi, başlangıç/bitiş satır sayısı, "
-        "demografik kaymalar, en riskli karar, bias_katki_skoru ve sözel yorum."
+        "Temizleme kararları, başlangıç/bitiş satır sayısı, demografik "
+        "kaymalar, ifşa edilen varsayım, varsayım hassasiyet skoru ve şeffaf yorum."
     ),
     agent=data_cleaning_agent,
 )
@@ -204,11 +231,12 @@ task_segment = Task(
     description=(
         "Temizlenmiş veriyi segmentlere ayır.\n\n"
         "1. `Segmentasyon Ajanı` aracını çalıştır.\n"
-        "2. Demografik temsil analizinde hangi grupların aşırı/eksik temsil "
-        "edildiğini ifşa et.\n"
-        "3. Oyun şirketinin hedef profili (Strateji/RPG türü, mobil/PC platformu) "
-        "açısından hangi segmentler değerli, hangileri risk?\n\n"
-        "Çıktı: Segment profilleri + demografik denge raporu."
+        "2. Demografik temsil farklarını rapor et — bu farkın **gerçek pazar "
+        "yapısından** mı yoksa örnekleme/temizleme artefaktından mı geldiğini "
+        "alt akıştaki ajanlar için açık bırak.\n"
+        "3. Hangi segmentlerin yüksek değerli (Strateji/RPG, mobil/PC) olduğunu "
+        "veriyle gerekçelendir.\n\n"
+        "Çıktı: Segment profilleri + demografik şeffaflık raporu."
     ),
     expected_output=(
         "Her segment için boyut, ortalama metrikler, demografik temsil farkı "
@@ -222,18 +250,20 @@ task_score = Task(
     description=(
         "Her müşteriye 0-100 potansiyel skoru ver.\n\n"
         "1. `İlk Skorlama Ajanı` aracını çalıştır.\n"
-        "   - Ağırlıkları JSON olarak verebilirsin; vermezsen eşit ağırlık.\n"
-        "   - Örnek (hedef: harcama vurgusu): {\"aylik_ortalama_harcama\": 0.4, "
-        "     \"haftalik_oyun_saati\": 0.2, ...}.\n"
-        "2. Aracın `oz_degerlendirme.demografik_skor_farklari` bölümünü yorumla — "
-        "hangi grupta skor farkı yüksek? Hangi metrik skoru domine ediyor?\n"
-        "3. `bias_katki_skoru` 0.3'ü aşıyorsa hangi ağırlık değişikliğinin riski "
-        "azaltacağını öner.\n\n"
-        "Çıktı: Skorlama modeli + bias risk değerlendirmesi."
+        "   - Ağırlıkları JSON olarak verebilirsin (örn. harcama vurgusu) ya da "
+        "eşit ağırlık için boş bırakabilirsin.\n"
+        "2. Aracın `oz_degerlendirme.varsayim` alanını yorumla — hangi metriğe "
+        "neden yüksek ağırlık verdin? Bu bir veri-temelli karar mı, kolay "
+        "varsayılan mı?\n"
+        "3. Demografik gruplar arası ortaya çıkan skor farkı (`max_fark_puan`) "
+        "büyükse, bu farkın yöntem mi yoksa veri mi olduğuna eleştirmenin "
+        "counterfactual ile karar vereceğini bilerek hareket et — düzeltme "
+        "önerme.\n\n"
+        "Çıktı: Skorlama modeli + ifşa edilen ağırlık varsayımı + şeffaflık raporu."
     ),
     expected_output=(
         "Kullanılan ağırlıklar, skor dağılımı, demografik grup ortalamaları, "
-        "en riskli ağırlık, bias_katki_skoru ve gerekçeli yorum."
+        "ifşa edilen varsayım, en dominant metrik, varsayım hassasiyet skoru."
     ),
     agent=scoring_agent,
     context=[task_clean, task_segment],
@@ -241,17 +271,20 @@ task_score = Task(
 
 task_proxy_bias = Task(
     description=(
-        "Proxy değişkenleri ve demografik bias'ı birlikte tespit et.\n\n"
+        "Skorlama metriklerinin demografik özelliklerle proxy ilişkisini ve "
+        "yüksek-skor segmentindeki demografik dağılımı tespit et.\n\n"
         "1. `Proxy ve Bias Tespit Ajanı` aracını çalıştır.\n"
-        "2. `proxy_analizi` listesindeki YÜKSEK riskli değişkenler için: bu ilişki "
-        "neden oluşuyor (sosyoekonomik, coğrafi)? Bu değişkenin skorlamada "
-        "kullanılması adil mi?\n"
-        "3. `bias_tespiti` bölümündeki demografik fark sayılarını yorumla.\n\n"
-        "Çıktı: Proxy + bias birleşik raporu + öneriler."
+        "2. YÜKSEK riskli proxy ilişkiler için: bu ilişki neden var "
+        "(sosyoekonomik, coğrafi, tarihsel)? Bu metriğin skorlamada "
+        "kullanılması bir karar — ajanların farkında olması gereken bir "
+        "varsayım yükü.\n"
+        "3. Hangi bilgilerin eleştirmenin işine yarayacağını öne çıkar. "
+        "Çıktıyı silme veya düzeltme önerme.\n\n"
+        "Çıktı: Proxy + bias raporu — kararın anlamını netleştiren bilgi olarak."
     ),
     expected_output=(
-        "Proxy listesi (Cramer's V değeriyle), demografik segment farkları, "
-        "hangi değişkenin tutulmalı / ağırlığı azaltılmalı / çıkarılmalı önerisi."
+        "Proxy listesi (Cramer's V), demografik segment farkları, ifşa edilen "
+        "varsayım ve bu ilişkilerin kararı nasıl etkilediğine dair yorum."
     ),
     agent=proxy_bias_agent,
     context=[task_score],
@@ -259,20 +292,24 @@ task_proxy_bias = Task(
 
 task_critique = Task(
     description=(
-        "Önceki ajanların kararlarını sayısal kanıtla denetle.\n\n"
-        "1. `Çapraz Ajan Değerlendirme Ajanı` aracını çalıştır — pipeline log'unu "
-        "okur, her ajanın bias katkısını sıralar, düzeltme önerileri üretir.\n"
-        "2. `Counterfactual Test Aracı` aracını çalıştır — 4 senaryo karşılaştır "
-        "(mevcut / eşit_agirlik / harcama_20 / harcama_10) ve `en_iyi_senaryo`'yu "
-        "tespit et.\n"
-        "3. İki çıktıyı birleştir: hangi ajan hangi bias'a katkıda bulundu, "
-        "hangi counterfactual senaryosu en düşük bias verdi, hangi düzeltme "
-        "yapılmalı?\n\n"
-        "Çıktı: Sayısal kanıtlı eleştiri raporu + 2-3 somut düzeltme kuralı."
+        "Önceki ajanların kararlarının altındaki varsayımları sayısal kanıtla "
+        "sorgula. Çıktıyı düzeltmeyeceksin — kararların hangi yönte ne kadar "
+        "duyarlı olduğunu **yüzeye çıkaracaksın**.\n\n"
+        "1. `Çapraz Ajan Değerlendirme Ajanı` aracını çalıştır — log'u okur, "
+        "her ajanın varsayım hassasiyetini sıralar, alternatif test önerir.\n"
+        "2. `Counterfactual Test Aracı` aracını çalıştır — 4 senaryo "
+        "(mevcut / eşit_agirlik / harcama_20 / harcama_10) karşılaştır. "
+        "Senaryolar arası fark büyükse ilk skorlama yöntemi yöntem-duyarlı "
+        "(fragile); küçükse robust.\n"
+        "3. İki çıktıyı birleştir: hangi ajanın kararı en kırılgan, hangi "
+        "varsayım alternatifi en fazla fark üretiyor? Bu bilgiyi düzeltme "
+        "kuralı olarak değil **şeffaflık raporu** olarak ilet.\n\n"
+        "Çıktı: Varsayım hassasiyeti raporu + counterfactual karşılaştırma."
     ),
     expected_output=(
-        "Ajan bias katkı sıralaması, counterfactual karşılaştırma tablosu, "
-        "en iyi senaryo + max demografik fark, 2-3 somut düzeltme kuralı."
+        "Ajan varsayım hassasiyet sıralaması, counterfactual karşılaştırma "
+        "tablosu, en yöntem-duyarlı karar, alternatif test önerileri "
+        "(zorlamadan, şeffaflık için)."
     ),
     agent=critic_agent,
     context=[task_clean, task_segment, task_score, task_proxy_bias],
@@ -280,23 +317,26 @@ task_critique = Task(
 
 task_corrected = Task(
     description=(
-        "Eleştirmenin önerdiği düzeltmeyi uygula ve gerekirse iteratif tekrar et.\n\n"
-        "1. `İteratif Öz-Düzeltme Loop` aracını çalıştır.\n"
-        "   - Default 3 tura kadar critic → corrected_scoring döngüsü yapar.\n"
-        "   - Max demografik fark 5 puanın altına inerse erken sonlandırır.\n"
-        "   - max_iterations parametresi ile sınırı değiştirebilirsin (1-5).\n"
-        "2. Aracın çıktısındaki `iterasyonlar` listesini yorumla:\n"
-        "   - Her turda max demografik fark nasıl değişti?\n"
-        "   - Hangi turda eşiğin altına inildi (veya inilemedi)?\n"
-        "   - `erken_sonlandi` true mu, max iter'a mı çarpıldı?\n"
-        "3. `son_max_fark` hâlâ eşik üstündeyse: hangi yapısal sınırın "
-        "convergence'i engellediğini açıkla (örn. tek alternatif öneri 'eşit "
-        "ağırlık', daha radikal bir müdahale gerekebilir).\n\n"
-        "Çıktı: İteratif düzeltme raporu + convergence analizi."
+        "İlk skorlamayı alternatif bir varsayımla yeniden çalıştır ve sonuç "
+        "yöntem değişikliğine ne kadar duyarlı bul.\n\n"
+        "1. `İteratif Varsayım Robustluk Testi` aracını çalıştır.\n"
+        "   - Default 3 tura kadar critic → alternative scoring döngüsü.\n"
+        "   - Turlar arası max demografik fark değişimi 1 puan altına inince "
+        "(STABILITE_ESIGI) erken sonlanır — bu noktada karar **convergence'e** "
+        "ulaşmıştır: artık alternatife duyarsız (robust).\n"
+        "2. `iterasyonlar` listesini yorumla:\n"
+        "   - Her turda fark nasıl değişti?\n"
+        "   - `karar_kirilganligi` etiketi her turda ne oldu (FRAGILE/ORTA/ROBUST)?\n"
+        "   - `erken_sonlandi` true mu, kararlar yumuşadı mı?\n"
+        "3. Convergence sağlanmazsa: bu bir 'başarısızlık' değil, kararın "
+        "**inherently varsayıma duyarlı** olduğunun kanıtı. Final raporda "
+        "her iki yöntemin sonucu birlikte sunulmalı.\n\n"
+        "Çıktı: İteratif robustluk raporu + convergence analizi (zorlamasız)."
     ),
     expected_output=(
-        "Tur sayısı, başlangıç/son max demografik fark, her tur için iyileşme "
-        "puanı ve uygulanan ağırlıklar, convergence durumu (✓/⚠) ile sözel yorum."
+        "Tur sayısı, başlangıç/son max demografik fark, her tur için karar "
+        "kırılganlığı + uygulanan ağırlıklar, convergence durumu (✓/ⓘ) ile "
+        "şeffaflık yorumu."
     ),
     agent=corrected_scoring_agent,
     context=[task_critique],
@@ -304,19 +344,22 @@ task_corrected = Task(
 
 task_final = Task(
     description=(
-        "Final hedef müşteri kitlesini oluştur ve iki rapor üret.\n\n"
+        "Final hedef müşteri kitlesini oluştur ve şeffaflık raporu üret.\n\n"
         "1. `Final Optimizasyon ve Rapor Ajanı` aracını çalıştır.\n"
         "   - Minimum skor eşiğini belirle (default 50).\n"
-        "   - Kriterleri JSON olarak verebilirsin: {\"min_skor\": 55}.\n"
-        "2. `surec_raporu`'ndaki ajan bias katkı sıralamasını ve en etkili "
-        "düzeltmeyi öne çıkar.\n"
-        "3. `optimal_kitle_raporu`'ndaki demografik profili pazarlama ekibi için "
-        "yorumla: kime, hangi kanalla, hangi mesajla ulaşılmalı?\n\n"
-        "Çıktı: Pazarlama ekibine teslim edilebilir final rapor."
+        "   - Kriterler JSON: {\"min_skor\": 55}.\n"
+        "2. `surec_raporu` ve `optimal_kitle_raporu`'nu birlikte yorumla:\n"
+        "   - En yöntem-duyarlı demografik boyut hangisi? (= en kırılgan karar)\n"
+        "   - Ajanlar arası kim en kırılgan kararlı, kim en robust?\n"
+        "3. Pazarlama ekibi için final çıktı: **kararın hangi yönü güvenle "
+        "kullanılabilir, hangi yönü varsayıma duyarlı**? Bu netlik kararın "
+        "körü körüne uygulanmasını engeller.\n\n"
+        "Çıktı: Şeffaf final rapor + 3-5 somut pazarlama önerisi (kırılganlık notu ile)."
     ),
     expected_output=(
         "Final kitle boyutu, elenme oranı, demografik profil, ortalama skor, "
-        "süreç özeti, en etkili düzeltme ve 3-5 somut pazarlama önerisi."
+        "süreç özeti, en yöntem-duyarlı boyut ve 3-5 somut pazarlama önerisi "
+        "(her birinde kararın kırılganlık seviyesi belirtilmiş)."
     ),
     agent=final_report_agent,
     context=[task_clean, task_segment, task_score, task_proxy_bias, task_critique, task_corrected],

@@ -31,18 +31,18 @@ AGENT_NAMES = [
     "İlk Skorlama",
     "Proxy & Bias Tespiti",
     "Çapraz Ajan Değerlendirmesi",
-    "Düzeltilmiş Skorlama",
+    "Alternatif Varsayım Testi",
     "Final Optimizasyon & Raporlar",
 ]
 
 AGENT_DESCS = [
-    "Veri temizleniyor ve temizleme kararlarının bias katkısı öz-değerlendiriliyor",
-    "Segmentasyon yapılıyor ve demografik temsil analiz ediliyor",
-    "İlk skor hesaplanıyor ve ağırlık kararlarının yarattığı demografik fark ölçülüyor",
-    "Proxy değişkenler ve demografik bias birlikte tespit ediliyor",
-    "Ajanların öz-değerlendirmeleri çapraz kontrol ediliyor ve düzeltme önerileri üretiliyor",
-    "Eleştirmen önerileriyle yeniden skorlama yapılıyor ve bias azaltması ölçülüyor",
-    "Optimal havuz oluşturuluyor, Süreç Raporu ve Kitle Raporu üretiliyor",
+    "Veri temizleniyor; temizleme kararının altındaki varsayım ve metodolojik kırılganlığı ölçülüyor",
+    "Segmentasyon yapılıyor; demografik temsil farkları (gerçek vs artefakt) şeffaflık için raporlanıyor",
+    "İlk skor hesaplanıyor; ağırlık seçiminin altındaki varsayım ve kararın yöntem-duyarlılığı yüzeye çıkarılıyor",
+    "Skorlama metriklerinin demografik özelliklerle dolaylı ilişkileri (proxy) ifşa ediliyor",
+    "Ajanların varsayımları sayısal kanıtla sorgulanıyor; en kırılgan karar tespit ediliyor",
+    "İlk skorlama alternatif varsayımla yeniden çalıştırılıyor; iki yöntem arası fark ölçülüyor (robust mu fragile mi?)",
+    "Optimal havuz + şeffaflık raporu üretiliyor — kararın hangi yönü güvenli, hangi yönü varsayıma duyarlı?",
 ]
 
 
@@ -287,66 +287,69 @@ def run_pipeline(msg_queue: queue.Queue, mode: str = "demo"):
         send_start(0)
         r1 = json.loads(clean_data.run(json.dumps({"yas_min": 13, "yas_max": 75})))
         oz1 = r1.get("oz_degerlendirme", {})
-        bias1 = oz1.get("bias_katki_skoru", 0)
-        level1 = "warn" if bias1 > 0.3 else "ok"
+        hassasiyet1 = oz1.get("bias_katki_skoru", 0)
+        level1 = "warn" if hassasiyet1 > 0.3 else "ok"
         send_done(0,
             f"{r1['baslangic_satir']} → {r1['bitis_satir']} kayıt  ·  "
-            f"{r1['elenen_satir']} elendi  ·  Bias katkı: {bias1:.2f}",
+            f"{r1['elenen_satir']} elendi  ·  Varsayım hassasiyeti: {hassasiyet1:.2f}",
             level1)
 
         # ── AJAN 2: Segmentasyon ──────────────────────────────────
         send_start(1)
         r2 = json.loads(segmentation_analysis.run(""))
         oz2 = r2.get("oz_degerlendirme", {})
-        bias2 = oz2.get("bias_katki_skoru", 0)
+        hassasiyet2 = oz2.get("bias_katki_skoru", 0)
         col_count = len(r2.get("metrik_istatistikler", {}))
-        level2 = "warn" if bias2 > 0.3 else "ok"
+        level2 = "warn" if hassasiyet2 > 0.3 else "ok"
         send_done(1,
-            f"{r2['toplam_kayit']} kayıt  ·  {col_count} metrik  ·  Bias katkı: {bias2:.2f}",
+            f"{r2['toplam_kayit']} kayıt  ·  {col_count} metrik  ·  "
+            f"Varsayım hassasiyeti: {hassasiyet2:.2f}",
             level2)
 
         # ── AJAN 3: İlk Skorlama ──────────────────────────────────
         send_start(2)
         r3 = json.loads(score_customers.run(""))
         oz3 = r3.get("oz_degerlendirme", {})
-        bias3 = oz3.get("bias_katki_skoru", 0)
+        hassasiyet3 = oz3.get("bias_katki_skoru", 0)
         dist3 = r3.get("skor_dagilimi", {})
-        level3 = "warn" if bias3 > 0.3 else "ok"
+        level3 = "warn" if hassasiyet3 > 0.3 else "ok"
         send_done(2,
             f"Prime: {dist3.get('Prime',0)}  Yüksek: {dist3.get('Yüksek',0)}  "
-            f"Orta: {dist3.get('Orta',0)}  ·  Bias katkı: {bias3:.2f}",
+            f"Orta: {dist3.get('Orta',0)}  ·  Varsayım hassasiyeti: {hassasiyet3:.2f}",
             level3)
 
         # ── AJAN 4: Proxy & Bias Tespiti ──────────────────────────
         send_start(3)
         r4 = json.loads(detect_proxy_and_bias.run(""))
         oz4 = r4.get("oz_degerlendirme", {})
-        bias4 = oz4.get("bias_katki_skoru", 0)
+        hassasiyet4 = oz4.get("bias_katki_skoru", 0)
         yuksek_proxy = r4.get("yuksek_riskli_proxy", 0)
         toplam_proxy = len(r4.get("proxy_analizi", []))
         level4 = "warn" if yuksek_proxy > 0 else "ok"
         send_done(3,
             f"{toplam_proxy} proxy ilişkisi  ·  {yuksek_proxy} yüksek riskli  ·  "
-            f"Bias katkı: {bias4:.2f}",
+            f"Varsayım hassasiyeti: {hassasiyet4:.2f}",
             level4)
 
         # ── AJAN 5: Çapraz Ajan Değerlendirmesi ───────────────────
         send_start(4)
         r5 = json.loads(inter_agent_critique.run(""))
-        en_yuksek = r5.get("en_yuksek_katkili_ajan", "—")
-        duzeltme_sayisi = len(r5.get("duzeltme_onerileri", {}))
-        level5 = "warn" if duzeltme_sayisi > 0 else "ok"
+        en_kirilgan = r5.get("en_yuksek_katkili_ajan", "—")
+        test_sayisi = len(r5.get("duzeltme_onerileri", {}))
+        level5 = "warn" if test_sayisi > 0 else "ok"
         send_done(4,
-            f"En yüksek katkılı: {en_yuksek}  ·  {duzeltme_sayisi} düzeltme önerildi",
+            f"En kırılgan karar: {en_kirilgan}  ·  {test_sayisi} alternatif test önerildi",
             level5)
 
-        # ── AJAN 6: Düzeltilmiş Skorlama ─────────────────────────
+        # ── AJAN 6: Alternatif Varsayım Testi ─────────────────────
         send_start(5)
         r6 = json.loads(corrected_scoring.run(""))
-        iyilesme = r6.get("toplam_bias_azalmasi_puan", 0)
-        level6 = "ok" if iyilesme >= 0 else "warn"
+        kirilganlik = r6.get("karar_kirilganligi", "—")
+        ortalama_delta = r6.get("ortalama_delta", 0)
+        level6 = "warn" if kirilganlik == "FRAGILE" else "ok"
         send_done(5,
-            f"Toplam bias azalması: {iyilesme:.1f} puan  ·  {r6.get('ozet', '')}",
+            f"Karar kırılganlığı: {kirilganlik}  ·  Yöntemler arası "
+            f"ortalama fark: {ortalama_delta:+.1f} puan",
             level6)
 
         # ── AJAN 7: Final Optimizasyon & Raporlar ─────────────────
@@ -1051,21 +1054,26 @@ def chat():
 
     analysis_context = "\n".join(context_parts)
 
-    system_prompt = f"""Sen TargetMind AI'ın analiz asistanısın. Bu sistem herhangi bir CSV verisini 7 ajanlı öz-farkındalıklı bir pipeline'dan geçirerek en yüksek potansiyelli kayıtları bulur ve demografik bias'ı tespit eder.
+    system_prompt = f"""Sen TargetMind AI'ın analiz asistanısın. Bu sistem 7 ajanlı **assumption-surfacing** bir pipeline yürütür: amaç çıktıyı demografik olarak eşitlemek DEĞİL, her ajanın verdiği kararın altındaki varsayımı şeffaf hale getirmek ve kararın metodolojiye mi yoksa veriye mi bağlı olduğunu ayırt etmektir.
+
+Anahtar metafor:
+- Bir karar "kırılgan" (fragile): alternatif yöntem kullanıldığında sonuç belirgin farklı çıkıyor → karar metodolojiye bağımlı, varsayıma duyarlı
+- Bir karar "robust": alternatif yöntem benzer sonuç veriyor → karar veriye bağlı, varsayımdan bağımsız
+- Gerçek bir veri sinyalini "düzeltmek" amacımız DEĞİL, kararın kaynağını netleştirmek
 
 7 Ajan Pipeline:
-1. Veri Temizleme — duplikasyon, negatif değerler, IQR aykırı değer tespiti, medyan/mod doldurma. Kendi kararlarının demografik dağılımı ne kadar kaydırdığını ölçer (bias katkı skoru).
-2. Segmentasyon — segment dağılımı, metrik istatistikleri, demografik temsil analizi.
-3. İlk Skorlama — metric kolonlardan 0-100 potansiyel skor. Ağırlık kararlarının yarattığı demografik skor farklarını ölçer.
-4. Proxy & Bias Tespiti — Cramer's V ile proxy değişkenler + demografik segment farklılıkları birlikte analiz edilir.
-5. Çapraz Ajan Değerlendirmesi — Tüm ajanların öz-değerlendirmeleri doğrulanır, çelişkiler bulunur, düzeltme önerileri üretilir.
-6. Düzeltilmiş Skorlama — Eleştirmen önerileriyle yeni ağırlıklarla yeniden skorlama, öncesi/sonrası bias karşılaştırması.
-7. Final Optimizasyon & Raporlar — Optimal havuz oluşturulur, Süreç Raporu + Kitle Raporu üretilir.
+1. Veri Temizleme — temizleme yönteminin altındaki varsayımı ifşa eder (mod dolgu = "eksik değer tipiktir"). Alternatif yöntemle sonuç ne kadar değişir? Bu fark = metodolojik kırılganlık.
+2. Segmentasyon — demografik temsil farklarını şeffaf raporlar (gerçek pazar yapısı mı, artefakt mı?).
+3. İlk Skorlama — ağırlık seçiminin altındaki "değerli müşteri" varsayımını ifşa eder. Eşit ağırlıkla benzer kitle çıkıyor mu?
+4. Proxy & Bias Tespiti — skor metriklerinin demografik özelliklerle dolaylı ilişkilerini Cramer's V ile ifşa eder (bilgi, hata değil).
+5. Çapraz Ajan Değerlendirmesi — her ajanın varsayım hassasiyetini sıralar, en kırılgan kararı tespit eder. Düzeltme değil, alternatif test önerir.
+6. Alternatif Varsayım Testi — eşit ağırlıkla yeniden skorlar, iki yöntem arası farkı (karar kırılganlığı: FRAGILE/ORTA/ROBUST) ölçer. İteratif: turlar arası fark stabilize olunca convergence.
+7. Final Rapor — final kitleyle birlikte her kararın hangi yöne kırılgan olduğunu şeffaflık raporu olarak sunar.
 
 Mevcut analiz durumu:
 {analysis_context}
 
-Kullanıcının sorularını kısa, net ve Türkçe olarak yanıtla. Teknik terimleri basitçe açıkla. Sayısal sonuçları bağlama göre yorumla."""
+Kullanıcının sorularını kısa, net ve Türkçe olarak yanıtla. "Bias var, düzeltelim" dilini KULLANMA — bunun yerine "karar şu varsayıma dayanıyor, alternatifle şu kadar değişir" diliyle açıkla."""
 
     try:
         import anthropic
