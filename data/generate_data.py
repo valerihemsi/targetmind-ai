@@ -42,24 +42,62 @@ def maybe_null(val, prob=0.12):
 
 
 def build_row(i: int) -> dict:
+    """
+    Tek bir müşteri satırı üretir. Veri saf rastgele DEĞİL: gerçek
+    davranışsal korelasyonlar enjekte edilmiştir, böylece ajanlar
+    gerçek sinyal ile metodoloji artefaktını ayırt edebilir.
+
+    Eklenen gerçek korelasyonlar:
+      - Gelir → harcama (yüksek gelir → ~10x daha çok harcar)
+      - Gelir → abonelik (yüksek gelir → %35 Premium, düşük → %5)
+      - Premium → harcama (Premium kullanıcılar 1.5-2.5x daha çok harcar)
+      - Oyun saati → tamamlama oranı (engaged user → oyunu daha çok bitirir)
+      - Oyun saati + harcama → in_app satın alma
+    """
     device = random.choices(DEVICES, weights=[0.55, 0.28, 0.12, 0.05])[0]
     platform = random.choice(PLATFORMS[device])
     age = int(np.clip(np.random.normal(27, 10), 10, 70))
     income = random.choices(INCOME, weights=[0.40, 0.42, 0.18])[0]
 
-    # Gelire göre harcama dağılımı
-    base_spend = {"Düşük": 30, "Orta": 120, "Yüksek": 380}[income]
-    spend = round(max(0, np.random.normal(base_spend, base_spend * 0.5)), 2)
+    # ── Abonelik: freemium gerçekçiliği + gelirle korelasyon ──────
+    # Yüksek gelir kullanıcılar Premium'a daha çok abone olur.
+    premium_prob = {"Düşük": 0.05, "Orta": 0.15, "Yüksek": 0.35}[income]
+    abonelik = "Premium" if random.random() < premium_prob else "Ücretsiz"
 
-    # Oyun saatine göre satın alma eğilimi
+    # ── Harcama: gelire bağlı ortalama + Premium'sa 1.5-2.5x çarpan ──
+    base_spend = {"Düşük": 30, "Orta": 120, "Yüksek": 380}[income]
+    spend = max(0, np.random.normal(base_spend, base_spend * 0.5))
+    if abonelik == "Premium":
+        spend *= random.uniform(1.5, 2.5)
+    spend = round(spend, 2)
+
+    # ── Oyun saati ──
     gaming_h = round(max(0, np.random.normal(12, 8)), 1)
+
+    # ── In-app satın alma: oyun saati + harcama yüksekse büyük olasılık ──
     in_app = "Evet" if (gaming_h > 8 and spend > 50 and random.random() > 0.3) else "Hayır"
 
     session = int(max(0, np.random.normal(18, 10)))
-    campaign_click = round(random.uniform(0, 1), 2)
+
+    # ── Kampanya tıklanma oranı: beta(2, 8) → ortalama ~0.2, sağ kuyruk ──
+    # Gerçek CTR profili: çoğu kullanıcı %10-25, az kullanıcı %60+
+    campaign_click = round(float(np.random.beta(2, 8)), 2)
+
     referrals = int(max(0, np.random.poisson(1.2)))
     last_active = int(max(0, np.random.exponential(30)))
-    completion = round(random.uniform(0.1, 1.0), 2)
+
+    # ── Tamamlama oranı: bimodal + oyun saatine bağlı ──
+    # %30 ihtimal "bırakanlar" (0.05-0.4), %70 ihtimal "bitirenler" (0.6-1.0).
+    # Engaged user'lar (yüksek oyun saati) bitirenler grubunda daha yüksek
+    # tamamlama oranına sahip → ajanın keşfedebileceği gerçek korelasyon.
+    if random.random() < 0.30:
+        completion = round(random.uniform(0.05, 0.4), 2)
+    else:
+        completion_base = min(1.0, 0.60 + gaming_h * 0.018)
+        completion = round(
+            float(np.clip(completion_base + np.random.normal(0, 0.08), 0.5, 1.0)),
+            2,
+        )
 
     genre = random.choices(
         GENRES,
@@ -79,7 +117,7 @@ def build_row(i: int) -> dict:
         "uygulama_ici_satin_alma": maybe_null(in_app, 0.08),
         "aylik_ortalama_harcama":  maybe_null(spend, 0.11),
         "son_aktivite_gun":     maybe_null(last_active, 0.07),
-        "abonelik_turu":        maybe_null(random.choice(SUB_TYPE), 0.06),
+        "abonelik_turu":        maybe_null(abonelik, 0.06),
         "kampanya_tiklanma_orani": maybe_null(campaign_click, 0.10),
         "arkadaslardan_referans":  maybe_null(referrals, 0.09),
         "aylik_oturum_sayisi":  maybe_null(session, 0.08),
