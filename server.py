@@ -179,6 +179,10 @@ def get_dashboard_data() -> dict:
         display_cols += [c for c in metric_cols if c in final.columns]
         if "potansiyel_skor" in final.columns:
             display_cols.append("potansiyel_skor")
+        # Yeni provenance kolonları — her satırda neden bu skor?
+        for c in ("dominant_metrik", "secim_gerekce"):
+            if c in final.columns:
+                display_cols.append(c)
         display_cols = list(dict.fromkeys(display_cols))
 
         num_cols_present = [c for c in display_cols if c in final.columns and pd.api.types.is_numeric_dtype(final[c])]
@@ -217,13 +221,38 @@ def get_dashboard_data() -> dict:
                 except Exception:
                     pass
 
+        # Objektif kazanım — ilk skorlama vs alternatif yöntem karşılaştırması
+        objektif_kazanim = None
+        log_path = Path("data/pipeline_log.json")
+        if log_path.exists():
+            try:
+                pipeline_log = json.loads(log_path.read_text())
+                ilk_snap = pipeline_log.get("Skorlama", {}).get("ilk_skorlama_snapshot", {})
+                son_snap = pipeline_log.get("Düzeltilmiş Skorlama", {}).get("son_skorlama_snapshot", {})
+                if ilk_snap and son_snap:
+                    ilk_top30 = set(ilk_snap.get("top_30_id", []))
+                    son_top30 = set(son_snap.get("top_30_id", []))
+                    ortak = ilk_top30 & son_top30
+                    toplam_ilk = len(ilk_top30)
+                    if toplam_ilk > 0:
+                        objektif_kazanim = {
+                            "top30_robust_sayisi":    len(ortak),
+                            "top30_toplam":           toplam_ilk,
+                            "karar_robustlugu_yuzde": round(len(ortak) / toplam_ilk * 100, 1),
+                            "sadece_ilk_yontemde":    sorted(list(ilk_top30 - son_top30)),
+                            "sadece_alternatifte":    sorted(list(son_top30 - ilk_top30)),
+                        }
+            except Exception:
+                pass
+
         return {
-            "funnel":       [len(raw), len(cleaned), len(final)],
-            "bias":         bias_compat,
-            "skor_dist":    skor_dist,
-            "final_list":   final_list,
-            "optimal_list": optimal_list,
-            "ozet":         ozet,
+            "funnel":            [len(raw), len(cleaned), len(final)],
+            "bias":              bias_compat,
+            "skor_dist":         skor_dist,
+            "final_list":        final_list,
+            "optimal_list":      optimal_list,
+            "ozet":              ozet,
+            "objektif_kazanim":  objektif_kazanim,
         }
     except Exception as e:
         return {"error": str(e)}

@@ -642,8 +642,8 @@
       </div>
       <div class="info-card">
         <div class="info-card-num">02</div>
-        <div class="info-card-title">Bias Tespiti</div>
-        <div class="info-card-text">Gelir, cinsiyet ve yaş bazında sistematik dışlama var mı? Gerçek fark mı, yapay bias mı? Her bulgu sayısal olarak ölçülür.</div>
+        <div class="info-card-title">Varsayım Şeffaflığı</div>
+        <div class="info-card-text">Ajanlar verdiği her kararın altındaki varsayımı yüzeye çıkarır ve alternatif yöntemle test eder. Gerçek veri sinyali mi, yöntem artefaktı mı — her bulgu sayısal olarak ayırt edilir.</div>
       </div>
       <div class="info-card">
         <div class="info-card-num">03</div>
@@ -821,9 +821,12 @@
       </div>
     </div>
 
-    <!-- Bias -->
+    <!-- Varsayım Hassasiyeti -->
     <div class="dash-section">
-      <div class="dash-label">Bias Durumu</div>
+      <div class="dash-label">Varsayım Hassasiyeti</div>
+      <p style="font-size:.78rem;color:var(--muted);margin:6px 0 10px;font-family:var(--sans);max-width:680px;line-height:1.5">
+        Skorun bu demografik boyut için ne kadarı <strong>veriden</strong>, ne kadarı <strong>yöntemden</strong> geliyor? Yüksek değer = karar alternatif yöntemle değişebilir (kırılgan). Düşük değer = karar yönteme duyarsız (robust).
+      </p>
       <div class="bias-grid">
         <div class="bias-card">
           <div class="bias-card-head">
@@ -831,7 +834,7 @@
             <div class="bias-badge" id="b-gelir-badge">—</div>
           </div>
           <div class="bias-val" id="b-gelir-val">—</div>
-          <div class="bias-sub">puan farkı · eşik: 5.0</div>
+          <div class="bias-sub">puan farkı · yöntem-duyarlılığı</div>
           <div class="bias-track"><div class="bias-fill" id="b-gelir-fill" style="width:0%"></div></div>
         </div>
         <div class="bias-card">
@@ -840,7 +843,7 @@
             <div class="bias-badge" id="b-cin-badge">—</div>
           </div>
           <div class="bias-val" id="b-cin-val">—</div>
-          <div class="bias-sub">puan farkı · eşik: 5.0</div>
+          <div class="bias-sub">puan farkı · yöntem-duyarlılığı</div>
           <div class="bias-track"><div class="bias-fill" id="b-cin-fill" style="width:0%"></div></div>
         </div>
         <div class="bias-card">
@@ -849,8 +852,37 @@
             <div class="bias-badge" id="b-yas-badge">—</div>
           </div>
           <div class="bias-val" id="b-yas-val">—</div>
-          <div class="bias-sub">puan farkı · eşik: 5.0</div>
+          <div class="bias-sub">puan farkı · yöntem-duyarlılığı</div>
           <div class="bias-track"><div class="bias-fill" id="b-yas-fill" style="width:0%"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Objektif Kazanım — ilk skorlama vs alternatif yöntem -->
+    <div class="dash-section" id="objektif-section" style="display:none">
+      <div class="dash-label">Objektif Kazanım — Yöntem Bağımsızlığı</div>
+      <p style="font-size:.78rem;color:var(--muted);margin:6px 0 14px;font-family:var(--sans);max-width:680px;line-height:1.5">
+        Top-30 müşterinin ne kadarı iki farklı ağırlık yöntemiyle de seçildi? Ortak kişiler <strong>gerçek sinyal</strong> (yöntemden bağımsız); sadece bir yöntemde çıkanlar metodoloji tercihine duyarlı.
+      </p>
+      <div style="display:grid;grid-template-columns:auto 1fr;gap:24px;align-items:center;padding:16px 18px;background:var(--bg2);border-radius:10px;border:1px solid var(--border)">
+        <div style="text-align:center;min-width:140px">
+          <div id="ok-yuzde" style="font-family:var(--serif);font-size:2.6rem;font-weight:600;color:var(--green);line-height:1">—</div>
+          <div style="font-size:.7rem;font-family:var(--mono);color:var(--muted);letter-spacing:.05em;margin-top:4px">KARAR ROBUSTLUĞU</div>
+          <div id="ok-orta" style="font-size:.72rem;color:var(--muted);margin-top:4px">— / —</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px;font-size:.78rem">
+          <div style="display:flex;align-items:center;gap:10px">
+            <span style="width:10px;height:10px;border-radius:50%;background:var(--green);flex-shrink:0"></span>
+            <span><strong>İki yöntemde de Top-30:</strong> <span id="ok-robust-list" style="color:var(--muted);font-family:var(--mono);font-size:.7rem">—</span></span>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px">
+            <span style="width:10px;height:10px;border-radius:50%;background:var(--yellow);flex-shrink:0"></span>
+            <span><strong>Sadece ilk yöntemde:</strong> <span id="ok-ilk-list" style="color:var(--muted);font-family:var(--mono);font-size:.7rem">—</span></span>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px">
+            <span style="width:10px;height:10px;border-radius:50%;background:#9ca3af;flex-shrink:0"></span>
+            <span><strong>Sadece alternatifte:</strong> <span id="ok-alt-list" style="color:var(--muted);font-family:var(--mono);font-size:.7rem">—</span></span>
+          </div>
         </div>
       </div>
     </div>
@@ -901,6 +933,7 @@
               <th>Tür</th>
               <th>Oyun / Hf.</th>
               <th>Harcama</th>
+              <th title="Bu satırın skoruna en çok katkı veren metrikler + yüzdelik">Gerekçe</th>
               <th title="Katılım · Sadakat · İkna Edilebilirlik">Bileşenler</th>
               <th>Mevcut Skor</th>
               <th>Gelecek Potansiyel</th>
@@ -933,7 +966,7 @@
             border:1px solid var(--border);color:var(--muted);
             background:transparent;text-decoration:none;
             display:inline-flex;align-items:center;gap:5px;
-          ">📋 Bias Raporu</a>
+          ">📋 Şeffaflık Raporu</a>
           <button id="download-btn" onclick="downloadCSV()">↓ CSV İndir</button>
         </div>
       </div>
@@ -950,6 +983,7 @@
               <th onclick="sortTable('haftalik_oyun_saati')">Oyun / Hf.</th>
               <th onclick="sortTable('aylik_ortalama_harcama')">Harcama</th>
               <th onclick="sortTable('potansiyel_skor')">Skor</th>
+              <th title="Bu satırın skoruna en çok katkı veren metrikler + yüzdelik">Gerekçe</th>
             </tr>
           </thead>
           <tbody id="table-body"></tbody>
@@ -971,18 +1005,18 @@ const AGENT_NAMES = [
   "İlk Skorlama",
   "Proxy & Bias Tespiti",
   "Çapraz Ajan Değerlendirmesi",
-  "Düzeltilmiş Skorlama",
+  "Alternatif Varsayım Testi",
   "Final Optimizasyon & Raporlar",
 ];
 
 const AGENT_DESCS = [
-  "Veri temizleniyor ve temizleme kararlarının bias katkısı öz-değerlendiriliyor",
-  "Segmentasyon yapılıyor ve demografik temsil analiz ediliyor",
-  "İlk skor hesaplanıyor ve ağırlık kararlarının yarattığı demografik fark ölçülüyor",
-  "Proxy değişkenler ve demografik bias birlikte tespit ediliyor",
-  "Ajanların öz-değerlendirmeleri çapraz kontrol ediliyor ve düzeltme önerileri üretiliyor",
-  "Eleştirmen önerileriyle yeniden skorlama yapılıyor ve bias azaltması ölçülüyor",
-  "Optimal havuz oluşturuluyor, Süreç Raporu ve Kitle Raporu üretiliyor",
+  "Veri temizleniyor; temizleme kararının altındaki varsayım ve metodolojik kırılganlık ölçülüyor",
+  "Segmentasyon yapılıyor; demografik temsil farkları (gerçek vs artefakt) şeffaflık için raporlanıyor",
+  "İlk skor hesaplanıyor; ağırlık seçiminin altındaki varsayım ve kararın yöntem-duyarlılığı yüzeye çıkarılıyor",
+  "Skorlama metriklerinin demografik özelliklerle dolaylı ilişkileri (proxy) ifşa ediliyor",
+  "Ajanların varsayımları sayısal kanıtla sorgulanıyor; en kırılgan karar tespit ediliyor",
+  "İlk skorlama alternatif varsayımla yeniden çalıştırılıyor; iki yöntem arası fark ölçülüyor (robust mu fragile mi?)",
+  "Optimal havuz + şeffaflık raporu üretiliyor — kararın hangi yönü güvenli, hangi yönü varsayıma duyarlı?",
 ];
 
 let tableData = [];
@@ -1297,6 +1331,29 @@ function showDashboard(data) {
     }, 200);
   });
 
+  // Objektif Kazanım — ilk yöntem vs alternatif yöntem
+  const ok = data.objektif_kazanim;
+  const okSection = document.getElementById("objektif-section");
+  if (ok && ok.top30_toplam) {
+    okSection.style.display = "block";
+    const yuzdeEl = document.getElementById("ok-yuzde");
+    yuzdeEl.textContent = `%${ok.karar_robustlugu_yuzde}`;
+    // Renk: %70+ yeşil, %40-69 sarı, <40 kırmızı
+    const r = ok.karar_robustlugu_yuzde;
+    yuzdeEl.style.color = r >= 70 ? "var(--green)" : r >= 40 ? "var(--yellow)" : "var(--red)";
+    document.getElementById("ok-orta").textContent =
+      `${ok.top30_robust_sayisi} / ${ok.top30_toplam} müşteri iki yöntemde de Top-30`;
+    const fmt = arr => arr.length ? arr.slice(0, 10).join(", ") + (arr.length > 10 ? ` … (+${arr.length - 10} daha)` : "") : "yok";
+    document.getElementById("ok-robust-list").textContent =
+      `${ok.top30_robust_sayisi} kişi (gerçek sinyal — yöntem-bağımsız)`;
+    document.getElementById("ok-ilk-list").textContent =
+      ok.sadece_ilk_yontemde.length ? `${ok.sadece_ilk_yontemde.length} kişi · ${fmt(ok.sadece_ilk_yontemde)}` : "yok";
+    document.getElementById("ok-alt-list").textContent =
+      ok.sadece_alternatifte.length ? `${ok.sadece_alternatifte.length} kişi · ${fmt(ok.sadece_alternatifte)}` : "yok";
+  } else {
+    okSection.style.display = "none";
+  }
+
   // Stats
   const oz = data.ozet;
   document.getElementById("s-skor").textContent    = oz.ort_skor;
@@ -1317,7 +1374,7 @@ function renderOptimalTable(list) {
   tbody.innerHTML = "";
 
   if (!list.length) {
-    tbody.innerHTML = `<tr><td colspan="11" style="text-align:center;color:var(--muted);padding:20px;font-family:var(--mono);font-size:.72rem">Henüz hesaplanmadı</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="12" style="text-align:center;color:var(--muted);padding:20px;font-family:var(--mono);font-size:.72rem">Henüz hesaplanmadı</td></tr>`;
     return;
   }
 
@@ -1346,6 +1403,7 @@ function renderOptimalTable(list) {
       <td>${row.tercih_edilen_tur}</td>
       <td>${row.haftalik_oyun_saati} s</td>
       <td>${Math.round(row.aylik_ortalama_harcama)} ₺</td>
+      <td style="font-family:var(--mono);font-size:.62rem;color:var(--muted);max-width:200px;line-height:1.4" title="${row.secim_gerekce || ''}">${row.secim_gerekce || '—'}</td>
       <td>
         <div style="display:flex;flex-direction:column;gap:2px;min-width:90px">
           <div style="display:flex;align-items:center;gap:4px;font-size:.62rem;font-family:var(--mono)">
@@ -1439,7 +1497,8 @@ function renderTable() {
           <div class="score-track"><div class="score-fill" style="width:${pct}%"></div></div>
           ${skor.toFixed(1)}
         </div>
-      </td>`;
+      </td>
+      <td style="font-family:var(--mono);font-size:.62rem;color:var(--muted);max-width:200px;line-height:1.4" title="${row.secim_gerekce || ''}">${row.secim_gerekce || '—'}</td>`;
     tbody.appendChild(tr);
   });
 
