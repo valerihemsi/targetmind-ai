@@ -719,3 +719,133 @@ def build_final_and_report(criteria_json: str = "") -> str:
 
     _log_agent("Final Optimizasyon", {"final_kitle": len(final), "surec_ozeti": surec["ajan_ozeti"]})
     return _dumps(result)
+
+
+# ══════════════════════════════════════════════════════════════
+#  YARDIMCI AJAN — COUNTERFACTUAL TEST
+#  (Eleştirmen ajanın elindeki ek araç. "Eğer ağırlıkları değiştirseydik
+#   bias nasıl olurdu?" sorusunu sayısal olarak yanıtlar.)
+# ══════════════════════════════════════════════════════════════
+
+@tool("Counterfactual Test Aracı")
+def counterfactual_test(scenarios_json: str = "") -> str:
+    """
+    Skorlama ağırlıklarının alternatif senaryolarda bias üzerindeki
+    etkisini test eder. JSON parametre verilmezse 4 default senaryo:
+      - mevcut (Skorlama ajanından)
+      - eşit_agirlik
+      - harcama_20 (harcama %20, kalan eşit)
+      - harcama_10 (harcama %10, kalan eşit)
+    Her senaryo için max demografik fark + Yüksek+Prime kitle sayısı + grup
+    ortalamaları döner. "En iyi" = en düşük max fark + non-zero Yüksek+Prime.
+    """
+    df          = _load(CLEANED_PATH)
+    mapping     = _load_mapping()
+    metric_cols = [c for c in mapping.get("metric_cols", [])
+                   if c in df.columns and pd.api.types.is_numeric_dtype(df[c])]
+    demo_cols   = [c for c in mapping.get("demographic_cols", []) if c in df.columns]
+
+    if not metric_cols:
+        return _dumps({"hata": "Metrik kolon bulunamadı."})
+
+    try:
+        custom = json.loads(scenarios_json) if scenarios_json.strip() else None
+    except Exception:
+        custom = None
+
+    n = len(metric_cols)
+    spending_col = "aylik_ortalama_harcama" if "aylik_ortalama_harcama" in metric_cols else None
+
+    log_scoring = _read_log().get("Skorlama", {}).get("kullanilan_agirliklar", {})
+
+    senaryolar = dict(custom) if custom else {}
+    if not senaryolar:
+        if log_scoring:
+            senaryolar["mevcut"] = {c: float(w) for c, w in log_scoring.items() if c in metric_cols}
+        senaryolar["esit_agirlik"] = {c: round(1.0 / n, 4) for c in metric_cols}
+        if spending_col and n > 1:
+            kalan20 = round((1.0 - 0.2) / (n - 1), 4)
+            senaryolar["harcama_20"] = {
+                c: (0.2 if c == spending_col else kalan20) for c in metric_cols
+            }
+            kalan10 = round((1.0 - 0.1) / (n - 1), 4)
+            senaryolar["harcama_10"] = {
+                c: (0.1 if c == spending_col else kalan10) for c in metric_cols
+            }
+
+    def norm(s):
+        mn, mx = s.min(), s.max()
+        return (s - mn) / (mx - mn + 1e-9)
+
+    sonuclar = {}
+    for ad, w in senaryolar.items():
+        skor = pd.Series(0.0, index=df.index)
+        for c in metric_cols:
+            skor = skor + norm(df[c]) * float(w.get(c, 1.0 / n))
+        skor = (skor * 100).round(2)
+        high_mask = skor >= 70
+
+        grup_ortalamalari = {}
+        max_fark = 0.0
+        for col in demo_cols:
+            try:
+                # skor'u demografik gruba göre ortalama al
+                tmp = pd.DataFrame({col: df[col].values, "_s": skor.values})
+                g = tmp.groupby(col)["_s"].mean()
+                fark = float(g.max() - g.min())
+                grup_ortalamalari[col] = {str(k): round(float(v), 2) for k, v in g.to_dict().items()}
+                if fark > max_fark:
+                    max_fark = fark
+            except Exception:
+                pass
+
+        yuksek_dagilim = {}
+        for col in demo_cols:
+            try:
+                if int(high_mask.sum()) > 0:
+                    dist = df.loc[high_mask, col].value_counts(normalize=True).round(3) * 100
+                    yuksek_dagilim[col] = {str(k): round(float(v), 1) for k, v in dist.to_dict().items()}
+            except Exception:
+                pass
+
+        sonuclar[ad] = {
+            "agirliklar": {c: round(float(v), 4) for c, v in w.items()},
+            "yuksek_prime_sayisi": int(high_mask.sum()),
+            "max_demografik_fark": round(max_fark, 2),
+            "grup_ortalamalari": grup_ortalamalari,
+            "yuksek_kitle_dagilimi": yuksek_dagilim,
+        }
+
+    # En iyi senaryo: en düşük max_demografik_fark (Yüksek+Prime > 0)
+    valid = {k: v for k, v in sonuclar.items() if v["yuksek_prime_sayisi"] > 0}
+    if valid:
+        en_iyi = min(valid, key=lambda k: valid[k]["max_demografik_fark"])
+    else:
+        en_iyi = next(iter(sonuclar), "—")
+
+    karsilastirma_satirlari = []
+    for ad, v in sonuclar.items():
+        karsilastirma_satirlari.append({
+            "senaryo": ad,
+            "yuksek_prime_sayisi": v["yuksek_prime_sayisi"],
+            "max_demografik_fark": v["max_demografik_fark"],
+        })
+
+    result = {
+        "senaryolar": sonuclar,
+        "karsilastirma_tablosu": karsilastirma_satirlari,
+        "en_iyi_senaryo": en_iyi,
+        "en_iyi_max_fark": sonuclar.get(en_iyi, {}).get("max_demografik_fark", 0),
+        "ozet": (
+            f"{len(sonuclar)} senaryo karşılaştırıldı. "
+            f"En düşük demografik fark '{en_iyi}' senaryosunda "
+            f"({sonuclar.get(en_iyi, {}).get('max_demografik_fark', 0):.1f} puan, "
+            f"{sonuclar.get(en_iyi, {}).get('yuksek_prime_sayisi', 0)} Yüksek+Prime)."
+        ),
+    }
+
+    _log_agent("Counterfactual Test", {
+        "en_iyi_senaryo": en_iyi,
+        "karsilastirma": karsilastirma_satirlari,
+    })
+    return _dumps(result)
