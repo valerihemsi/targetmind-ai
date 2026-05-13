@@ -914,31 +914,11 @@
     <div class="dash-section">
       <div class="dash-label" style="margin-bottom:4px">⭐ Optimal Hedef Kitle</div>
       <p style="font-size:.78rem;color:var(--muted);margin-bottom:10px;font-family:var(--sans)">
-        Mevcut skor <strong>ve</strong> gelecek harcama potansiyeli yüksek müşteriler.
+        Mevcut skor ve (varsa) gelecek potansiyeli en yüksek müşteriler. Tablonun kolonları yüklediğin verinin mapping'ine göre dinamik oluşturulur.
       </p>
-      <div style="display:flex;gap:16px;margin-bottom:14px;font-size:.72rem;font-family:var(--mono)">
-        <span><span style="color:#6366f1;font-weight:600">K</span> <span style="color:var(--muted)">Katılım %30</span></span>
-        <span><span style="color:var(--green);font-weight:600">S</span> <span style="color:var(--muted)">Sadakat %25</span></span>
-        <span><span style="color:var(--yellow);font-weight:600">İ</span> <span style="color:var(--muted)">İkna Edilebilirlik %22</span></span>
-      </div>
       <div class="table-wrap">
         <table id="optimal-table">
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Yaş</th>
-              <th>Cinsiyet</th>
-              <th>Gelir</th>
-              <th>Abonelik</th>
-              <th>Tür</th>
-              <th>Oyun / Hf.</th>
-              <th>Harcama</th>
-              <th title="Bu satırın skoruna en çok katkı veren metrikler + yüzdelik">Gerekçe</th>
-              <th title="Katılım · Sadakat · İkna Edilebilirlik">Bileşenler</th>
-              <th>Mevcut Skor</th>
-              <th>Gelecek Potansiyel</th>
-            </tr>
-          </thead>
+          <thead id="optimal-head"></thead>
           <tbody id="optimal-body"></tbody>
         </table>
       </div>
@@ -972,20 +952,7 @@
       </div>
       <div class="table-wrap">
         <table id="customer-table">
-          <thead>
-            <tr>
-              <th onclick="sortTable('musteri_id')">ID</th>
-              <th onclick="sortTable('yas')">Yaş</th>
-              <th onclick="sortTable('cinsiyet')">Cinsiyet</th>
-              <th onclick="sortTable('gelir_seviyesi')">Gelir</th>
-              <th onclick="sortTable('cihaz_turu')">Cihaz</th>
-              <th onclick="sortTable('tercih_edilen_tur')">Tür Tercihi</th>
-              <th onclick="sortTable('haftalik_oyun_saati')">Oyun / Hf.</th>
-              <th onclick="sortTable('aylik_ortalama_harcama')">Harcama</th>
-              <th onclick="sortTable('potansiyel_skor')">Skor</th>
-              <th title="Bu satırın skoruna en çok katkı veren metrikler + yüzdelik">Gerekçe</th>
-            </tr>
-          </thead>
+          <thead id="customer-head"></thead>
           <tbody id="table-body"></tbody>
         </table>
       </div>
@@ -1023,6 +990,51 @@ let tableData = [];
 let sortCol   = "potansiyel_skor";
 let sortDir   = "desc";
 let doneCount = 0;
+// Mapping — backend'den gelir, tabloların dinamik kolon üretmesi için kullanılır
+let currentMapping = {
+  id_col: "musteri_id",
+  demographic_cols: [],
+  metric_cols: [],
+  segment_col: "",
+};
+
+// ── Yardımcılar: kolon adlarını okunaklı başlığa çevir ────────
+function prettyHeader(col) {
+  const aliases = {
+    musteri_id: "ID", user_id: "ID", hasta_id: "ID", ogrenci_id: "ID",
+    hesap_no: "ID",
+    yas: "Yaş", age: "Yaş",
+    cinsiyet: "Cinsiyet", gender: "Cinsiyet",
+    gelir_seviyesi: "Gelir", gelir_grubu: "Gelir", income: "Gelir",
+    sehir: "Şehir", city: "Şehir",
+    potansiyel_skor: "Skor",
+    secim_gerekce: "Gerekçe",
+    dominant_metrik: "Dominant Metrik",
+    gelecek_potansiyel: "Gelecek Potansiyel",
+    skor_segmenti: "Segment",
+    abonelik_turu: "Abonelik",
+    tercih_edilen_tur: "Tür",
+    haftalik_oyun_saati: "Oyun / Hf.",
+    aylik_ortalama_harcama: "Harcama",
+    cihaz_turu: "Cihaz",
+  };
+  return aliases[col] || col.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+}
+
+// Bir hücre değerini güzel format'a çevir
+function formatCell(val, col) {
+  if (val === undefined || val === null || val === "" || val === "—") return "—";
+  // sayısal değerler
+  if (typeof val === "number") {
+    if (col === "potansiyel_skor" || col === "gelecek_potansiyel") return val.toFixed(1);
+    if (col.includes("harcama") || col.includes("spend") || col.includes("price")) {
+      return Math.round(val) + " ₺";
+    }
+    if (Number.isInteger(val)) return String(val);
+    return val.toFixed(2);
+  }
+  return String(val);
+}
 
 // ── Timeline oluştur ──────────────────────────────────────────
 function buildTimeline() {
@@ -1301,6 +1313,11 @@ function showDashboard(data) {
   document.getElementById("pipeline").style.display  = "none";
   document.getElementById("dashboard").style.display = "block";
 
+  // Backend'den gelen mapping'i sakla — tablolar bunu dinamik kullanır
+  if (data.mapping) {
+    currentMapping = data.mapping;
+  }
+
   // Funnel
   const [raw, clean, final] = data.funnel;
   animateNumber("f-raw",   raw);
@@ -1369,78 +1386,76 @@ function showDashboard(data) {
   renderOptimalTable(data.optimal_list || []);
 }
 
+// Hangi kolonları sıralı olarak göstereceğiz?
+// (ID → demografi → segment → metrik → skor → gerekçe → gelecek_potansiyel)
+function buildDisplayCols(mapping, sampleRow, opts = {}) {
+  const cols = [];
+  if (mapping.id_col && mapping.id_col in sampleRow) cols.push(mapping.id_col);
+  (mapping.demographic_cols || []).forEach(c => { if (c in sampleRow) cols.push(c); });
+  if (mapping.segment_col && mapping.segment_col in sampleRow) cols.push(mapping.segment_col);
+  (mapping.metric_cols || []).forEach(c => { if (c in sampleRow) cols.push(c); });
+  if ("potansiyel_skor" in sampleRow) cols.push("potansiyel_skor");
+  if (opts.includeGelecek && "gelecek_potansiyel" in sampleRow) cols.push("gelecek_potansiyel");
+  if ("secim_gerekce" in sampleRow) cols.push("secim_gerekce");
+  // Tekrarları temizle
+  return [...new Set(cols)];
+}
+
 function renderOptimalTable(list) {
   const tbody = document.getElementById("optimal-body");
+  const thead = document.getElementById("optimal-head");
   tbody.innerHTML = "";
+  thead.innerHTML = "";
 
   if (!list.length) {
-    tbody.innerHTML = `<tr><td colspan="12" style="text-align:center;color:var(--muted);padding:20px;font-family:var(--mono);font-size:.72rem">Henüz hesaplanmadı</td></tr>`;
+    thead.innerHTML = "<tr><th>—</th></tr>";
+    tbody.innerHTML = `<tr><td style="text-align:center;color:var(--muted);padding:20px;font-family:var(--mono);font-size:.72rem">Henüz hesaplanmadı</td></tr>`;
     return;
   }
 
+  const cols = buildDisplayCols(currentMapping, list[0], { includeGelecek: true });
+
+  // Header
+  thead.innerHTML = "<tr>" + cols.map(c => {
+    const title = c === "secim_gerekce" ? ' title="Bu satırın skoruna en çok katkı veren metrikler + yüzdelik"' : "";
+    return `<th${title}>${prettyHeader(c)}</th>`;
+  }).join("") + "</tr>";
+
+  // Rows
   list.forEach((row, i) => {
-    const gelir = row.gelir_seviyesi;
-    const gelirClass = gelir === "Yüksek" ? "tag-gelir-yuksek"
-                     : gelir === "Orta"   ? "tag-gelir-orta"
-                     : "tag-gelir-dusuk";
-
-    const gelecek   = parseFloat(row.gelecek_potansiyel) || 0;
-    const mevcut    = parseFloat(row.potansiyel_skor)    || 0;
-    const katilim   = parseFloat(row._katilim)           || 0;
-    const sadakat   = parseFloat(row._sadakat)           || 0;
-    const ikna      = parseFloat(row._ikna)              || 0;
-    const isPremium = row.abonelik_turu === "Premium";
-
     const tr = document.createElement("tr");
     if (i < 3) tr.style.background = "rgba(67,56,202,.04)"; // top 3 vurgusu
 
-    tr.innerHTML = `
-      <td style="font-family:var(--mono);font-size:.7rem;color:var(--muted)">${row.musteri_id}</td>
-      <td>${row.yas}</td>
-      <td>${row.cinsiyet}</td>
-      <td><span class="tag ${gelirClass}">${gelir}</span></td>
-      <td style="font-size:.75rem">${isPremium ? '⭐ Premium' : 'Ücretsiz'}</td>
-      <td>${row.tercih_edilen_tur}</td>
-      <td>${row.haftalik_oyun_saati} s</td>
-      <td>${Math.round(row.aylik_ortalama_harcama)} ₺</td>
-      <td style="font-family:var(--mono);font-size:.62rem;color:var(--muted);max-width:200px;line-height:1.4" title="${row.secim_gerekce || ''}">${row.secim_gerekce || '—'}</td>
-      <td>
-        <div style="display:flex;flex-direction:column;gap:2px;min-width:90px">
-          <div style="display:flex;align-items:center;gap:4px;font-size:.62rem;font-family:var(--mono)">
-            <span style="width:22px;color:var(--muted)">K</span>
-            <div style="flex:1;height:4px;background:var(--bg2);border-radius:2px">
-              <div style="height:4px;border-radius:2px;background:#6366f1;width:${Math.min(katilim,100)}%"></div>
-            </div>
-            <span style="width:22px;text-align:right;color:#6366f1">${katilim.toFixed(0)}</span>
+    tr.innerHTML = cols.map(c => {
+      const val = row[c];
+      // Skor / gelecek potansiyel için bar
+      if (c === "potansiyel_skor" || c === "gelecek_potansiyel") {
+        const num = parseFloat(val) || 0;
+        const isFuture = c === "gelecek_potansiyel";
+        return `<td>
+          <div class="score-bar">
+            <div class="score-track"><div class="score-fill" style="width:${Math.min(num,100)}%${isFuture ? ';background:var(--green)' : ''}"></div></div>
+            ${isFuture ? `<strong style="color:var(--indigo)">${num.toFixed(1)}</strong>` : num.toFixed(1)}
           </div>
-          <div style="display:flex;align-items:center;gap:4px;font-size:.62rem;font-family:var(--mono)">
-            <span style="width:22px;color:var(--muted)">S</span>
-            <div style="flex:1;height:4px;background:var(--bg2);border-radius:2px">
-              <div style="height:4px;border-radius:2px;background:var(--green);width:${Math.min(sadakat,100)}%"></div>
-            </div>
-            <span style="width:22px;text-align:right;color:var(--green)">${sadakat.toFixed(0)}</span>
-          </div>
-          <div style="display:flex;align-items:center;gap:4px;font-size:.62rem;font-family:var(--mono)">
-            <span style="width:22px;color:var(--muted)">İ</span>
-            <div style="flex:1;height:4px;background:var(--bg2);border-radius:2px">
-              <div style="height:4px;border-radius:2px;background:var(--yellow);width:${Math.min(ikna,100)}%"></div>
-            </div>
-            <span style="width:22px;text-align:right;color:var(--yellow)">${ikna.toFixed(0)}</span>
-          </div>
-        </div>
-      </td>
-      <td>
-        <div class="score-bar">
-          <div class="score-track"><div class="score-fill" style="width:${Math.min(mevcut,100)}%"></div></div>
-          ${mevcut.toFixed(1)}
-        </div>
-      </td>
-      <td>
-        <div class="score-bar">
-          <div class="score-track"><div class="score-fill" style="width:${Math.min(gelecek,100)}%;background:var(--green)"></div></div>
-          <strong style="color:var(--indigo)">${gelecek.toFixed(1)}</strong>
-        </div>
-      </td>`;
+        </td>`;
+      }
+      // Gelir kolonu için tag
+      if (c.includes("gelir") && typeof val === "string") {
+        const gelirClass = val === "Yüksek" ? "tag-gelir-yuksek"
+                         : val === "Orta"   ? "tag-gelir-orta"
+                         : "tag-gelir-dusuk";
+        return `<td><span class="tag ${gelirClass}">${val}</span></td>`;
+      }
+      // ID kolonu için mono
+      if (c === currentMapping.id_col) {
+        return `<td style="font-family:var(--mono);font-size:.7rem;color:var(--muted)">${val ?? "—"}</td>`;
+      }
+      // Gerekçe için küçük mono, max width
+      if (c === "secim_gerekce") {
+        return `<td style="font-family:var(--mono);font-size:.62rem;color:var(--muted);max-width:200px;line-height:1.4" title="${val || ''}">${val || '—'}</td>`;
+      }
+      return `<td>${formatCell(val, c)}</td>`;
+    }).join("");
     tbody.appendChild(tr);
   });
 }
@@ -1465,46 +1480,70 @@ function animateNumber(id, target) {
 //  TABLE
 // ══════════════════════════════════════════════════════════════
 function renderTable() {
+  const thead = document.getElementById("customer-head");
+  const tbody = document.getElementById("table-body");
+  tbody.innerHTML = "";
+  thead.innerHTML = "";
+
+  if (!tableData.length) {
+    thead.innerHTML = "<tr><th>—</th></tr>";
+    tbody.innerHTML = `<tr><td style="text-align:center;color:var(--muted);padding:20px;font-family:var(--mono);font-size:.72rem">Veri yok</td></tr>`;
+    return;
+  }
+
+  // Dinamik kolonlar
+  const cols = buildDisplayCols(currentMapping, tableData[0], { includeGelecek: false });
+
+  // Header (sortable)
+  thead.innerHTML = "<tr>" + cols.map(c => {
+    const cls = sortCol === c
+      ? (sortDir === "asc" ? "sort-asc" : "sort-desc")
+      : "";
+    const title = c === "secim_gerekce" ? ' title="Bu satırın skoruna en çok katkı veren metrikler + yüzdelik"' : "";
+    return `<th class="${cls}" onclick="sortTable('${c}')"${title}>${prettyHeader(c)}</th>`;
+  }).join("") + "</tr>";
+
+  // Sırala
   const sorted = [...tableData].sort((a, b) => {
     const va = a[sortCol], vb = b[sortCol];
-    const cmp = typeof va === "number" ? va - vb : String(va).localeCompare(String(vb));
+    if (va === undefined && vb === undefined) return 0;
+    if (va === undefined) return 1;
+    if (vb === undefined) return -1;
+    const cmp = typeof va === "number" && typeof vb === "number"
+      ? va - vb
+      : String(va).localeCompare(String(vb));
     return sortDir === "asc" ? cmp : -cmp;
   });
 
-  const tbody = document.getElementById("table-body");
-  tbody.innerHTML = "";
-
+  // Rows
   sorted.forEach(row => {
-    const gelir = row.gelir_seviyesi;
-    const gelirClass = gelir === "Yüksek" ? "tag-gelir-yuksek"
-                     : gelir === "Orta"   ? "tag-gelir-orta"
-                     : "tag-gelir-dusuk";
-    const skor = parseFloat(row.potansiyel_skor) || 0;
-    const pct  = Math.min(skor, 100);
-
     const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td style="font-family:var(--mono);font-size:.7rem;color:var(--muted)">${row.musteri_id}</td>
-      <td>${row.yas}</td>
-      <td>${row.cinsiyet}</td>
-      <td><span class="tag ${gelirClass}">${gelir}</span></td>
-      <td>${row.cihaz_turu}</td>
-      <td>${row.tercih_edilen_tur}</td>
-      <td>${row.haftalik_oyun_saati} s</td>
-      <td>${Math.round(row.aylik_ortalama_harcama)} ₺</td>
-      <td>
-        <div class="score-bar">
-          <div class="score-track"><div class="score-fill" style="width:${pct}%"></div></div>
-          ${skor.toFixed(1)}
-        </div>
-      </td>
-      <td style="font-family:var(--mono);font-size:.62rem;color:var(--muted);max-width:200px;line-height:1.4" title="${row.secim_gerekce || ''}">${row.secim_gerekce || '—'}</td>`;
+    tr.innerHTML = cols.map(c => {
+      const val = row[c];
+      if (c === "potansiyel_skor" || c === "gelecek_potansiyel") {
+        const num = parseFloat(val) || 0;
+        return `<td>
+          <div class="score-bar">
+            <div class="score-track"><div class="score-fill" style="width:${Math.min(num,100)}%"></div></div>
+            ${num.toFixed(1)}
+          </div>
+        </td>`;
+      }
+      if (c.includes("gelir") && typeof val === "string") {
+        const gelirClass = val === "Yüksek" ? "tag-gelir-yuksek"
+                         : val === "Orta"   ? "tag-gelir-orta"
+                         : "tag-gelir-dusuk";
+        return `<td><span class="tag ${gelirClass}">${val}</span></td>`;
+      }
+      if (c === currentMapping.id_col) {
+        return `<td style="font-family:var(--mono);font-size:.7rem;color:var(--muted)">${val ?? "—"}</td>`;
+      }
+      if (c === "secim_gerekce") {
+        return `<td style="font-family:var(--mono);font-size:.62rem;color:var(--muted);max-width:200px;line-height:1.4" title="${val || ''}">${val || '—'}</td>`;
+      }
+      return `<td>${formatCell(val, c)}</td>`;
+    }).join("");
     tbody.appendChild(tr);
-  });
-
-  // Sort header güncelle
-  document.querySelectorAll("th").forEach(th => {
-    th.classList.remove("sort-asc", "sort-desc");
   });
 }
 
@@ -1516,14 +1555,6 @@ function sortTable(col) {
     sortDir = "desc";
   }
   renderTable();
-
-  const ths = document.querySelectorAll("th");
-  const cols = ["musteri_id","yas","cinsiyet","gelir_seviyesi","cihaz_turu",
-                "tercih_edilen_tur","haftalik_oyun_saati","aylik_ortalama_harcama","potansiyel_skor"];
-  const idx = cols.indexOf(col);
-  if (idx >= 0 && ths[idx]) {
-    ths[idx].classList.add(sortDir === "asc" ? "sort-asc" : "sort-desc");
-  }
 }
 
 // ── CSV indir ─────────────────────────────────────────────────

@@ -253,6 +253,13 @@ def get_dashboard_data() -> dict:
             "optimal_list":      optimal_list,
             "ozet":              ozet,
             "objektif_kazanim":  objektif_kazanim,
+            # Frontend tabloların dinamik kolon üretebilmesi için mapping
+            "mapping": {
+                "id_col":           id_col,
+                "demographic_cols": demo_cols,
+                "metric_cols":      metric_cols,
+                "segment_col":      mapping.get("segment_col", ""),
+            },
         }
     except Exception as e:
         return {"error": str(e)}
